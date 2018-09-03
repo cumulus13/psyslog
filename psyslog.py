@@ -160,6 +160,26 @@ class SyslogUDPHandler(SocketServer.BaseRequestHandler):
         except:
             return 8
 
+    def get_level_color_config(self, level):
+        if str(level) == '0':
+            return self.read_config('LEVEL_EMERGENCY', 'fore', value='white'), self.read_config('LEVEL_EMERGENCY', 'back', value='magenta')
+        elif str(level) == '1':
+            return self.read_config('LEVEL_ALERT', 'fore', value='white'), self.read_config('LEVEL_ALERT', 'back', value='blue')
+        elif str(level) == '2':
+            return self.read_config('LEVEL_CRITICAL', 'fore', value='white'), self.read_config('LEVEL_CRITICAL', 'back', value='green')
+        elif str(level) == '3':
+            return self.read_config('LEVEL_ERROR', 'fore', value='white'), self.read_config('LEVEL_ERROR', 'back', value='red')
+        elif str(level) == '4':
+            return self.read_config('LEVEL_WARNING', 'fore', value='white'), self.read_config('LEVEL_WARNING', 'back', value='yellow')
+        elif str(level) == '5':
+            return self.read_config('LEVEL_NOTICE', 'fore', value='white'), self.read_config('LEVEL_NOTICE', 'back', value='cyan')
+        elif str(level) == '6':
+            return self.read_config('LEVEL_INFO', 'fore', value='green'), self.read_config('LEVEL_INFO', 'back', value='black')
+        elif str(level) == '7':
+            return self.read_config('LEVEL_DEBUG', 'fore', value='yellow'), self.read_config('LEVEL_DEBUG', 'back', value='black')
+        else:
+            return self.read_config('LEVEL_UNKNOWN', 'fore', value='red'), self.read_config('LEVEL_UNKNOWN', 'back', value='white')
+
     def coloring(self, number, text, facility_string=''):
         '''function coloring
         
@@ -177,21 +197,53 @@ class SyslogUDPHandler(SocketServer.BaseRequestHandler):
         severity = self.convert_priority_to_severity(number)
         # print "severity =", severity
         if int(severity) == 0:
-            return facility_string + self.make_colors(text, 'white', 'magenta')
+            fore, back = self.get_level_color_config(0)
+            if fore and back:
+                return facility_string + self.make_colors(text, fore, back)
+            else:
+                return facility_string + self.make_colors(text, 'white', 'magenta')
         elif int(severity) == 1:
-            return facility_string + self.make_colors(text, 'white', 'blue')
+            fore, back = self.get_level_color_config(1)
+            if fore and back:
+                return facility_string + self.make_colors(text, fore, back)
+            else:
+                return facility_string + self.make_colors(text, 'white', 'blue')
         elif int(severity) == 2:
-            return facility_string + self.make_colors(text, 'white', 'green')
+            fore, back = self.get_level_color_config(2)
+            if fore and back:
+                return facility_string + self.make_colors(text, fore, back)
+            else:
+                return facility_string + self.make_colors(text, 'white', 'green')
         elif int(severity) == 3:
-            return facility_string + self.make_colors(text, 'white', 'red')
+            fore, back = self.get_level_color_config(3)
+            if fore and back:
+                return facility_string + self.make_colors(text, fore, back)
+            else:
+                return facility_string + self.make_colors(text, 'white', 'red')
         elif int(severity) == 4:
-            return facility_string + self.make_colors(text, 'white', 'yellow')
+            fore, back = self.get_level_color_config(4)
+            if fore and back:
+                return facility_string + self.make_colors(text, fore, back)
+            else:
+                return facility_string + self.make_colors(text, 'black', 'yellow')
         elif int(severity) == 5:
-            return facility_string + self.make_colors(text, 'white', 'cyan')
+            fore, back = self.get_level_color_config(5)
+            if fore and back:
+                return facility_string + self.make_colors(text, fore, back)
+            else:
+                return facility_string + self.make_colors(text, 'white', 'cyan')
         elif int(severity) == 6:
-            return facility_string + self.make_colors(text, 'green')
+            fore, back = self.get_level_color_config(6)
+            if fore and back:
+                return facility_string + self.make_colors(text, fore, back)
+            else:
+                return facility_string + self.make_colors(text, 'green')
         elif int(severity) == 7:
-            return facility_string + self.make_colors(text, 'yellow')
+            fore, back = self.get_level_color_config(7)
+            if fore and back:
+                return facility_string + self.make_colors(text, fore, back)
+            else:
+                return facility_string + self.make_colors(text, 'yellow')
         else:
             return facility_string + self.make_colors(text, 'red', 'white')
 
@@ -523,6 +575,29 @@ class Psyslog(object):
         except:
             return 8
 
+    def get_level_color_config(self, level):
+        if str(level) == '0':
+            return self.read_config('LEVEL_EMERGENCY', 'fore', value='white'), self.read_config('LEVEL_EMERGENCY', 'back', value='magenta')
+        elif str(level) == '1':
+            return self.read_config('LEVEL_ALERT', 'fore', value='white'), self.read_config('LEVEL_ALERT', 'back', value='blue')
+        elif str(level) == '2':
+            return self.read_config('LEVEL_CRITICAL', 'fore', value='white'), self.read_config('LEVEL_CRITICAL', 'back', value='green')
+        elif str(level) == '3':
+            return self.read_config('LEVEL_ERROR', 'fore', value='white'), self.read_config('LEVEL_ERROR', 'back', value='red')
+        elif str(level) == '4':
+            return self.read_config('LEVEL_WARNING', 'fore', value='white'), self.read_config('LEVEL_WARNING', 'back', value='yellow')
+        elif str(level) == '5':
+            return self.read_config('LEVEL_NOTICE', 'fore', value='white'), self.read_config('LEVEL_NOTICE', 'back', value='cyan')
+        elif str(level) == '6':
+            return self.read_config('LEVEL_INFO', 'fore', value='green'), self.read_config('LEVEL_INFO', 'back', value='black')
+        elif str(level) == '7':
+            return self.read_config('LEVEL_DEBUG', 'fore', value='yellow'), self.read_config('LEVEL_DEBUG', 'back', value='black')
+        else:
+            return self.read_config('LEVEL_UNKNOWN', 'fore', value='red'), self.read_config('LEVEL_UNKNOWN', 'back', value='white')
+
+    def get_facility_color_config(self):
+        return self.read_config('FACILITY', 'fore', 'white'), self.read_config('FACILITY', 'back', 'green')
+
     def coloring(self, number, text, facility_string=''):
         '''function coloring
         
@@ -530,31 +605,67 @@ class Psyslog(object):
         
         Arguments:
             number {str} -- number include from syslog receive
-            text {str} --string syslog receiver per line/time
+            text {str} -- text string syslog receiver per line/time
         
         Returns:
              str -- message/text with colored
         '''
         if facility_string:
-            facility_string = self.make_colors("[", 'white', 'black') + self.make_colors(facility_string, 'magenta') + self.make_colors("]", 'white') + " "
+            facility_fore, facility_back = self.get_facility_color_config()
+            if facility_fore and facility_back:
+                facility_string = self.make_colors("[", 'white', 'black') + self.make_colors(facility_string, facility_fore, facility_back) + self.make_colors("]", 'white', 'black') + " "
+            else:   
+                facility_string = self.make_colors("[", 'white', 'black') + self.make_colors(facility_string, 'white', 'magenta') + self.make_colors("]", 'white', 'black') + " "
         severity = self.convert_priority_to_severity(number)
         # print "severity =", severity
         if int(severity) == 0:
-            return facility_string + self.make_colors(text, 'white', 'magenta')
+            fore_0, back_0 = self.get_level_color_config(0)
+            if fore_0 and back_0:
+                return facility_string + self.make_colors(text, fore_0, back_0)
+            else:
+                return facility_string + self.make_colors(text, 'white', 'magenta')
         elif int(severity) == 1:
-            return facility_string + self.make_colors(text, 'white', 'blue')
+            fore_1, back_1 = self.get_level_color_config(1)
+            if fore_1 and back_1:
+                return facility_string + self.make_colors(text, fore_1, back_1)
+            else:
+                return facility_string + self.make_colors(text, 'white', 'blue')
         elif int(severity) == 2:
-            return facility_string + self.make_colors(text, 'white', 'green')
+            fore_2, back_2 = self.get_level_color_config(2)
+            if fore_2 and back_2:
+                return facility_string + self.make_colors(text, fore_2, back_2)
+            else:
+                return facility_string + self.make_colors(text, 'white', 'green')
         elif int(severity) == 3:
-            return facility_string + self.make_colors(text, 'white', 'red')
+            fore_3, back_3 = self.get_level_color_config(3)
+            if fore_3 and back_3:
+                return facility_string + self.make_colors(text, fore_3, back_3)
+            else:
+                return facility_string + self.make_colors(text, 'white', 'red')
         elif int(severity) == 4:
-            return facility_string + self.make_colors(text, 'white', 'yellow')
+            fore_4, back_4 = self.get_level_color_config(4)
+            if fore_4 and back_4:
+                return facility_string + self.make_colors(text, fore_4, back_4)
+            else:
+                return facility_string + self.make_colors(text, 'black', 'yellow')
         elif int(severity) == 5:
-            return facility_string + self.make_colors(text, 'white', 'cyan')
+            fore_5, back_5 = self.get_level_color_config(5)
+            if fore_5 and back_5:
+                return facility_string + self.make_colors(text, fore_5, back_5)
+            else:
+                return facility_string + self.make_colors(text, 'white', 'cyan')
         elif int(severity) == 6:
-            return facility_string + self.make_colors(text, 'green')
+            fore_6, back_6 = self.get_level_color_config(6)
+            if fore_6 and back_6:
+                return facility_string + self.make_colors(text, fore_6, back_6)
+            else:
+                return facility_string + self.make_colors(text, 'green')
         elif int(severity) == 7:
-            return facility_string + self.make_colors(text, 'yellow')
+            fore_7, back_7 = self.get_level_color_config(7)
+            if fore_7 and back_7:
+                return facility_string + self.make_colors(text, fore_7, back_7)
+            else:
+                return facility_string + self.make_colors(text, 'yellow')
         else:
             return facility_string + self.make_colors(text, 'red', 'white')
 
@@ -664,7 +775,7 @@ class Psyslog(object):
         try:
             sock.bind((host, port))
             # sock.listen(5)
-            print "Syslog Bind: %s:%s [pid:%s]" %(self.make_colors(host, 'green'), self.make_colors(str(port), 'cyan'), self.make_colors(PID, 'red'))
+            print "Syslog Bind: %s:%s [pid:%s]" %(self.make_colors(host, 'green'), self.make_colors(str(port), 'cyan'), self.make_colors(PID, 'white', 'blue'))
             while 1:
                 data = sock.recv(65565)
                 if data:
@@ -835,6 +946,16 @@ class Psyslog(object):
         s.sendto("EXIT", (host, port))
         s.close()
 
+    def tester(self):
+        syslog.syslog('TEST MESSAGE EMERGENCY', 0, 5)
+        syslog.syslog('TEST MESSAGE ALERT', 1, 5)
+        syslog.syslog('TEST MESSAGE CRITICAL', 2, 5)
+        syslog.syslog('TEST MESSAGE ERROR', 3, 5)
+        syslog.syslog('TEST MESSAGE WARNING', 4, 5)
+        syslog.syslog('TEST MESSAGE NOTICE', 5, 5)
+        syslog.syslog('TEST MESSAGE INFO', 6, 5)
+        syslog.syslog('TEST MESSAGE DEBUG', 7, 5)
+
     def usage(self):
         import argparse
         parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
@@ -844,10 +965,14 @@ class Psyslog(object):
         parser.add_argument('-P', '--client-port', action='store', help='Port binding default: 514', default=514)
         parser.add_argument('-S', '--server-port', action='store', help='Port binding default: 1514', default=1514)
         parser.add_argument('-x', '--exit', action='store_true', help='shutdown/terminate server')
+        parser.add_argument('-t', '--test', action='store_true', help='Test Send Message to port 514 (Client)')
         if len(sys.argv) == 1:
             parser.print_help()
         else:
             args = parser.parse_args()
+            if args.test:
+                self.tester()
+                sys.exit(0)
             if args.server:
                 self.server(args.host, args.server_port)
             if args.client:
