@@ -248,6 +248,10 @@ class SyslogUDPHandler(SocketServer.BaseRequestHandler):
             return facility_string + self.make_colors(text, 'red', 'white')
 
     def set_config(self, file_config_path='psyslog.ini'):
+        if file_config_path:
+            file_config_path = os.path.join(os.path.dirname(__file__), os.path.basename(file_config_path))
+        else:
+            file_config_path = os.path.join(os.path.dirname(__file__), 'psyslog.ini')
         import ConfigParser
         cfg = ConfigParser.RawConfigParser(allow_no_value=True)
         cfg.optionxform = str
@@ -670,6 +674,10 @@ class Psyslog(object):
             return facility_string + self.make_colors(text, 'red', 'white')
 
     def set_config(self, file_config_path='psyslog.ini'):
+        if file_config_path:
+            file_config_path = os.path.join(os.path.dirname(__file__), os.path.basename(file_config_path))
+        else:
+            file_config_path = os.path.join(os.path.dirname(__file__), 'psyslog.ini')
         import ConfigParser
         cfg = ConfigParser.RawConfigParser(allow_no_value=True)
         cfg.optionxform = str
