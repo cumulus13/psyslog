@@ -15,9 +15,7 @@ import traceback
 import socket
 import SocketServer
 import time
-# from make_colors import make_colors
-import termcolor
-import colorama
+from make_colors import make_colors
 import re
 from datetime import datetime
 import syslog
@@ -34,103 +32,6 @@ class SyslogUDPHandler(SocketServer.BaseRequestHandler):
     
     def make_colors_click(self, string, foreground='', background=''):
         return click.secho(string, fg=foreground, bg=background)
-
-    def make_colors(self, string, foreground = '', background = '', attrs = ''):
-        string = str(string)
-        try:
-            colorama.init(True, wrap= True)
-            if sys.platform == 'win32':
-                colors_fore = {
-                    "white": colorama.Fore.WHITE,
-                    "black": colorama.Fore.BLACK,
-                    "blue": colorama.Fore.BLUE,
-                    "cyan": colorama.Fore.CYAN,
-                    "green": colorama.Fore.GREEN,
-                    "red": colorama.Fore.RED,
-                    "magenta": colorama.Fore.MAGENTA,
-                    "yellow": colorama.Fore.YELLOW,
-                    "lightwhite": colorama.Fore.LIGHTWHITE_EX,
-                    "lightblack": colorama.Fore.LIGHTBLACK_EX,
-                    "lightblue": colorama.Fore.LIGHTBLUE_EX,
-                    "lightcyan": colorama.Fore.LIGHTCYAN_EX,
-                    "lightgreen": colorama.Fore.LIGHTGREEN_EX,
-                    "lightred": colorama.Fore.LIGHTRED_EX,
-                    "lightmagenta": colorama.Fore.LIGHTMAGENTA_EX,
-                    "lightyellow": colorama.Fore.LIGHTYELLOW_EX,                    
-                }
-                
-                colors_back = {
-                    'white': colorama.Back.WHITE,
-                    'black': colorama.Back.BLACK,
-                    'blue': colorama.Back.BLUE,
-                    'cyan': colorama.Back.CYAN,
-                    'green': colorama.Back.GREEN,
-                    'red': colorama.Back.RED,
-                    'magenta': colorama.Back.MAGENTA,
-                    'yellow': colorama.Back.YELLOW,
-                    'lightwhite': colorama.Back.LIGHTWHITE_EX,
-                    'lightblack': colorama.Back.LIGHTBLACK_EX,
-                    'lightblue': colorama.Back.LIGHTBLUE_EX,
-                    'lightcyan': colorama.Back.LIGHTCYAN_EX,
-                    'lightgreen': colorama.Back.LIGHTGREEN_EX,
-                    'lightred': colorama.Back.LIGHTRED_EX,
-                    'lightmagenta': colorama.Back.LIGHTMAGENTA_EX,
-                    'lightyellow': colorama.Back.LIGHTYELLOW_EX,                    
-                }
-            else:
-                colors_fore = {
-                    "white": colorama.Fore.WHITE,
-                    "black": colorama.Fore.BLACK,
-                    "blue": colorama.Fore.BLUE,
-                    "cyan": colorama.Fore.CYAN,
-                    "green": colorama.Fore.GREEN,
-                    "red": colorama.Fore.RED,
-                    "magenta": colorama.Fore.MAGENTA,
-                    "yellow": colorama.Fore.YELLOW,
-                    "lightwhite": colorama.Fore.white,
-                    "lightblack": colorama.Fore.black,
-                    "lightblue": colorama.Fore.blue,
-                    "lightcyan": colorama.Fore.cyan,
-                    "lightgreen": colorama.Fore.green,
-                    "lightred": colorama.Fore.red,
-                    "lightmagenta": colorama.Fore.magenta,
-                    "lightyellow": colorama.Fore.yellow,                    
-                }
-                
-                colors_back = {
-                    'white': colorama.Back.WHITE,
-                    'black': colorama.Back.BLACK,
-                    'blue': colorama.Back.BLUE,
-                    'cyan': colorama.Back.CYAN,
-                    'green': colorama.Back.GREEN,
-                    'red': colorama.Back.RED,
-                    'magenta': colorama.Back.MAGENTA,
-                    'yellow': colorama.Back.YELLOW,
-                    "lightwhite": colorama.Fore.white,
-                    "lightblack": colorama.Fore.black,
-                    "lightblue": colorama.Fore.blue,
-                    "lightcyan": colorama.Fore.cyan,
-                    "lightgreen": colorama.Fore.green,
-                    "lightred": colorama.Fore.red,
-                    "lightmagenta": colorama.Fore.magenta,
-                    "lightyellow": colorama.Fore.yellow,
-                }
-            
-            foreground1 = colors_fore.get(str(foreground))
-            background1 = colors_back.get(str(background))
-
-            if not foreground1:
-                foreground1 = ''
-            if not background1:
-                background1 = ''
-            if foreground == None or background == "None":
-                return string
-            colorama.reinit()
-            return foreground1 + background1 + string 
-        except ImportError:
-            print 'NO MODULE NAME: "colorama"'
-            return string
-        # colorama.init()
 
     def sent_to_broker(self, newLogString, host="localhost", port=6379, db=1):
         '''function sent_to_broker
@@ -193,59 +94,59 @@ class SyslogUDPHandler(SocketServer.BaseRequestHandler):
              str -- message/text with colored
         '''
         if facility_string:
-            facility_string = self.make_colors("[", 'white') + self.make_colors(facility_string, 'green') + self.make_colors("]", 'white') + " "
+            facility_string = make_colors("[", 'white') + make_colors(facility_string, 'green') + make_colors("]", 'white') + " "
         severity = self.convert_priority_to_severity(number)
         # print "severity =", severity
         if int(severity) == 0:
             fore, back = self.get_level_color_config(0)
             if fore and back:
-                return facility_string + self.make_colors(text, fore, back)
+                return facility_string + make_colors(text, fore, back)
             else:
-                return facility_string + self.make_colors(text, 'white', 'magenta')
+                return facility_string + make_colors(text, 'white', 'magenta')
         elif int(severity) == 1:
             fore, back = self.get_level_color_config(1)
             if fore and back:
-                return facility_string + self.make_colors(text, fore, back)
+                return facility_string + make_colors(text, fore, back)
             else:
-                return facility_string + self.make_colors(text, 'white', 'blue')
+                return facility_string + make_colors(text, 'white', 'blue')
         elif int(severity) == 2:
             fore, back = self.get_level_color_config(2)
             if fore and back:
-                return facility_string + self.make_colors(text, fore, back)
+                return facility_string + make_colors(text, fore, back)
             else:
-                return facility_string + self.make_colors(text, 'white', 'green')
+                return facility_string + make_colors(text, 'white', 'green')
         elif int(severity) == 3:
             fore, back = self.get_level_color_config(3)
             if fore and back:
-                return facility_string + self.make_colors(text, fore, back)
+                return facility_string + make_colors(text, fore, back)
             else:
-                return facility_string + self.make_colors(text, 'white', 'red')
+                return facility_string + make_colors(text, 'white', 'red')
         elif int(severity) == 4:
             fore, back = self.get_level_color_config(4)
             if fore and back:
-                return facility_string + self.make_colors(text, fore, back)
+                return facility_string + make_colors(text, fore, back)
             else:
-                return facility_string + self.make_colors(text, 'black', 'yellow')
+                return facility_string + make_colors(text, 'black', 'yellow')
         elif int(severity) == 5:
             fore, back = self.get_level_color_config(5)
             if fore and back:
-                return facility_string + self.make_colors(text, fore, back)
+                return facility_string + make_colors(text, fore, back)
             else:
-                return facility_string + self.make_colors(text, 'white', 'cyan')
+                return facility_string + make_colors(text, 'white', 'cyan')
         elif int(severity) == 6:
             fore, back = self.get_level_color_config(6)
             if fore and back:
-                return facility_string + self.make_colors(text, fore, back)
+                return facility_string + make_colors(text, fore, back)
             else:
-                return facility_string + self.make_colors(text, 'green')
+                return facility_string + make_colors(text, 'green')
         elif int(severity) == 7:
             fore, back = self.get_level_color_config(7)
             if fore and back:
-                return facility_string + self.make_colors(text, fore, back)
+                return facility_string + make_colors(text, fore, back)
             else:
-                return facility_string + self.make_colors(text, 'yellow')
+                return facility_string + make_colors(text, 'yellow')
         else:
-            return facility_string + self.make_colors(text, 'red', 'white')
+            return facility_string + make_colors(text, 'red', 'white')
 
     def set_config(self, file_config_path='psyslog.ini'):
         if file_config_path:
@@ -319,15 +220,29 @@ class SyslogUDPHandler(SocketServer.BaseRequestHandler):
             string -- format: 'YEAR:MONT:DAY HOUR:MINUTE:SECOND:MILISECOND'
         '''
         x = datetime.fromtimestamp(time)
-        # ct = self.make_colors(datetime.strftime(x, '%Y:%m:%d %H:%M:%S.%f'), 'magenta')
+        # ct = make_colors(datetime.strftime(x, '%Y:%m:%d %H:%M:%S.%f'), 'magenta')
         return datetime.strftime(x, '%Y:%m:%d %H:%M:%S.%f')
 
     def time_to_integer(self, timestamps):
         return time.mktime(timestamps.timetuple())
 
     def save_to_file(self, message, timestamps, facility_string='', logfile_name='psyslog.log', rotate='1M'):
+        log_dir = os.path.join(os.path.dirname(__file__), 'logs')
+        log_dir_pass = False
+        if self.read_config('LOGS', 'log_dir', 'logs'):
+            log_dir1 = self.read_config('LOGS', 'log_dir', 'logs')
+            if not os.path.isdir(log_dir1):
+                log_dir = os.path.join(os.path.dirname(__file__), 'logs')
+            else:
+                log_dir = log_dir1
+                log_dir_pass = True
+        if not log_dir_pass and os.path.isdir(log_dir):
+            os.makedirs(log_dir)
+        
         if not self.read_config('LOGS', 'rotate'):
             self.write('LOGS', 'rotate', rotate)
+        if self.read_config('LOGS', 'log_file_name'):
+            logfile_name = self.read_config('LOGS', 'log_file_name')
         if facility_string:
             facility_string = " [" + facility_string + "] "
         message = timestamps + facility_string + message + "\n"
@@ -408,7 +323,7 @@ class SyslogUDPHandler(SocketServer.BaseRequestHandler):
         else:
             show_priority_number = bool(show_priority_number)
 
-        client_address = self.make_colors(self.client_address[0], 'cyan')
+        client_address = make_colors(self.client_address[0], 'cyan')
         times = self.convert_time(int(time.time()))
         data = bytes.decode(self.request[0].strip(), 'utf-8')
         data_split = re.split('<|>', data, 2)
@@ -429,7 +344,7 @@ class SyslogUDPHandler(SocketServer.BaseRequestHandler):
         data = self.coloring(number, data)
         laengde = len(data)
         if laengde > 4:
-            newLogString = "%s@%s %s %s" % (self.make_colors(lineNumber, 'green'), times, client_address, data)
+            newLogString = "%s@%s %s %s" % (make_colors(lineNumber, 'green'), times, client_address, data)
             if send_queue:
                 newLogString = "%s@%s %s %s\n" % (lineNumber, times, self.client_address[0], data)
                 self.sent_to_broker(newLogString)
@@ -453,103 +368,6 @@ class SyslogUDPHandler(SocketServer.BaseRequestHandler):
 class Psyslog(object):
     def __init__(self):
         super(Psyslog, self)
-
-    def make_colors(self, string, foreground = '', background = '', attrs = ''):
-        string = str(string)
-        try:
-            colorama.init(True, wrap= True)
-            if sys.platform == 'win32':
-                colors_fore = {
-                    "white": colorama.Fore.WHITE,
-                    "black": colorama.Fore.BLACK,
-                    "blue": colorama.Fore.BLUE,
-                    "cyan": colorama.Fore.CYAN,
-                    "green": colorama.Fore.GREEN,
-                    "red": colorama.Fore.RED,
-                    "magenta": colorama.Fore.MAGENTA,
-                    "yellow": colorama.Fore.YELLOW,
-                    "lightwhite": colorama.Fore.LIGHTWHITE_EX,
-                    "lightblack": colorama.Fore.LIGHTBLACK_EX,
-                    "lightblue": colorama.Fore.LIGHTBLUE_EX,
-                    "lightcyan": colorama.Fore.LIGHTCYAN_EX,
-                    "lightgreen": colorama.Fore.LIGHTGREEN_EX,
-                    "lightred": colorama.Fore.LIGHTRED_EX,
-                    "lightmagenta": colorama.Fore.LIGHTMAGENTA_EX,
-                    "lightyellow": colorama.Fore.LIGHTYELLOW_EX,                    
-                }
-                
-                colors_back = {
-                    'white': colorama.Back.WHITE,
-                    'black': colorama.Back.BLACK,
-                    'blue': colorama.Back.BLUE,
-                    'cyan': colorama.Back.CYAN,
-                    'green': colorama.Back.GREEN,
-                    'red': colorama.Back.RED,
-                    'magenta': colorama.Back.MAGENTA,
-                    'yellow': colorama.Back.YELLOW,
-                    'lightwhite': colorama.Back.LIGHTWHITE_EX,
-                    'lightblack': colorama.Back.LIGHTBLACK_EX,
-                    'lightblue': colorama.Back.LIGHTBLUE_EX,
-                    'lightcyan': colorama.Back.LIGHTCYAN_EX,
-                    'lightgreen': colorama.Back.LIGHTGREEN_EX,
-                    'lightred': colorama.Back.LIGHTRED_EX,
-                    'lightmagenta': colorama.Back.LIGHTMAGENTA_EX,
-                    'lightyellow': colorama.Back.LIGHTYELLOW_EX,                    
-                }
-            else:
-                colors_fore = {
-                    "white": colorama.Fore.WHITE,
-                    "black": colorama.Fore.BLACK,
-                    "blue": colorama.Fore.BLUE,
-                    "cyan": colorama.Fore.CYAN,
-                    "green": colorama.Fore.GREEN,
-                    "red": colorama.Fore.RED,
-                    "magenta": colorama.Fore.MAGENTA,
-                    "yellow": colorama.Fore.YELLOW,
-                    "lightwhite": colorama.Fore.white,
-                    "lightblack": colorama.Fore.black,
-                    "lightblue": colorama.Fore.blue,
-                    "lightcyan": colorama.Fore.cyan,
-                    "lightgreen": colorama.Fore.green,
-                    "lightred": colorama.Fore.red,
-                    "lightmagenta": colorama.Fore.magenta,
-                    "lightyellow": colorama.Fore.yellow,                    
-                }
-                
-                colors_back = {
-                    'white': colorama.Back.WHITE,
-                    'black': colorama.Back.BLACK,
-                    'blue': colorama.Back.BLUE,
-                    'cyan': colorama.Back.CYAN,
-                    'green': colorama.Back.GREEN,
-                    'red': colorama.Back.RED,
-                    'magenta': colorama.Back.MAGENTA,
-                    'yellow': colorama.Back.YELLOW,
-                    "lightwhite": colorama.Fore.white,
-                    "lightblack": colorama.Fore.black,
-                    "lightblue": colorama.Fore.blue,
-                    "lightcyan": colorama.Fore.cyan,
-                    "lightgreen": colorama.Fore.green,
-                    "lightred": colorama.Fore.red,
-                    "lightmagenta": colorama.Fore.magenta,
-                    "lightyellow": colorama.Fore.yellow,
-                }
-            
-            foreground1 = colors_fore.get(str(foreground))
-            background1 = colors_back.get(str(background))
-
-            if not foreground1:
-                foreground1 = ''
-            if not background1:
-                background1 = ''
-            if foreground == None or background == "None":
-                return string
-            colorama.reinit()
-            return foreground1 + background1 + string 
-        except ImportError:
-            print 'NO MODULE NAME: "colorama"'
-            return string
-        # colorama.init()
 
     def sent_to_broker(self, newLogString, host="localhost", port=6379, db=1):
         '''function sent_to_broker
@@ -617,61 +435,61 @@ class Psyslog(object):
         if facility_string:
             facility_fore, facility_back = self.get_facility_color_config()
             if facility_fore and facility_back:
-                facility_string = self.make_colors("[", 'white', 'black') + self.make_colors(facility_string, facility_fore, facility_back) + self.make_colors("]", 'white', 'black') + " "
+                facility_string = make_colors("[", 'white', 'black') + make_colors(facility_string, facility_fore, facility_back) + make_colors("]", 'white', 'black') + " "
             else:   
-                facility_string = self.make_colors("[", 'white', 'black') + self.make_colors(facility_string, 'white', 'magenta') + self.make_colors("]", 'white', 'black') + " "
+                facility_string = make_colors("[", 'white', 'black') + make_colors(facility_string, 'white', 'magenta') + make_colors("]", 'white', 'black') + " "
         severity = self.convert_priority_to_severity(number)
         # print "severity =", severity
         if int(severity) == 0:
             fore_0, back_0 = self.get_level_color_config(0)
             if fore_0 and back_0:
-                return facility_string + self.make_colors(text, fore_0, back_0)
+                return facility_string + make_colors(text, fore_0, back_0)
             else:
-                return facility_string + self.make_colors(text, 'white', 'magenta')
+                return facility_string + make_colors(text, 'white', 'magenta')
         elif int(severity) == 1:
             fore_1, back_1 = self.get_level_color_config(1)
             if fore_1 and back_1:
-                return facility_string + self.make_colors(text, fore_1, back_1)
+                return facility_string + make_colors(text, fore_1, back_1)
             else:
-                return facility_string + self.make_colors(text, 'white', 'blue')
+                return facility_string + make_colors(text, 'white', 'blue')
         elif int(severity) == 2:
             fore_2, back_2 = self.get_level_color_config(2)
             if fore_2 and back_2:
-                return facility_string + self.make_colors(text, fore_2, back_2)
+                return facility_string + make_colors(text, fore_2, back_2)
             else:
-                return facility_string + self.make_colors(text, 'white', 'green')
+                return facility_string + make_colors(text, 'white', 'green')
         elif int(severity) == 3:
             fore_3, back_3 = self.get_level_color_config(3)
             if fore_3 and back_3:
-                return facility_string + self.make_colors(text, fore_3, back_3)
+                return facility_string + make_colors(text, fore_3, back_3)
             else:
-                return facility_string + self.make_colors(text, 'white', 'red')
+                return facility_string + make_colors(text, 'white', 'red')
         elif int(severity) == 4:
             fore_4, back_4 = self.get_level_color_config(4)
             if fore_4 and back_4:
-                return facility_string + self.make_colors(text, fore_4, back_4)
+                return facility_string + make_colors(text, fore_4, back_4)
             else:
-                return facility_string + self.make_colors(text, 'black', 'yellow')
+                return facility_string + make_colors(text, 'black', 'yellow')
         elif int(severity) == 5:
             fore_5, back_5 = self.get_level_color_config(5)
             if fore_5 and back_5:
-                return facility_string + self.make_colors(text, fore_5, back_5)
+                return facility_string + make_colors(text, fore_5, back_5)
             else:
-                return facility_string + self.make_colors(text, 'white', 'cyan')
+                return facility_string + make_colors(text, 'white', 'cyan')
         elif int(severity) == 6:
             fore_6, back_6 = self.get_level_color_config(6)
             if fore_6 and back_6:
-                return facility_string + self.make_colors(text, fore_6, back_6)
+                return facility_string + make_colors(text, fore_6, back_6)
             else:
-                return facility_string + self.make_colors(text, 'green')
+                return facility_string + make_colors(text, 'green')
         elif int(severity) == 7:
             fore_7, back_7 = self.get_level_color_config(7)
             if fore_7 and back_7:
-                return facility_string + self.make_colors(text, fore_7, back_7)
+                return facility_string + make_colors(text, fore_7, back_7)
             else:
-                return facility_string + self.make_colors(text, 'yellow')
+                return facility_string + make_colors(text, 'yellow')
         else:
-            return facility_string + self.make_colors(text, 'red', 'white')
+            return facility_string + make_colors(text, 'red', 'white')
 
     def set_config(self, file_config_path='psyslog.ini'):
         if file_config_path:
@@ -745,7 +563,7 @@ class Psyslog(object):
             string -- format: 'YEAR:MONT:DAY HOUR:MINUTE:SECOND:MILISECOND'
         '''
         x = datetime.fromtimestamp(time)
-        # ct = self.make_colors(datetime.strftime(x, '%Y:%m:%d %H:%M:%S.%f'), 'magenta')
+        # ct = make_colors(datetime.strftime(x, '%Y:%m:%d %H:%M:%S.%f'), 'magenta')
         return datetime.strftime(x, '%Y:%m:%d %H:%M:%S.%f')
 
     def time_to_integer(self, timestamps):
@@ -779,11 +597,14 @@ class Psyslog(object):
 
     def server(self, host='0.0.0.0', port=1514):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
+        if self.read_config('SERVER', 'host', value= '0.0.0.0'):
+            host = self.read_config('SERVER', 'host', value= '0.0.0.0')
+        if self.read_config('SERVER', 'port', value= '1514'):
+            port = int(self.read_config('SERVER', 'port', value= '1514'))        
         try:
             sock.bind((host, port))
             # sock.listen(5)
-            print "Syslog Bind: %s:%s [pid:%s]" %(self.make_colors(host, 'green'), self.make_colors(str(port), 'cyan'), self.make_colors(PID, 'white', 'blue'))
+            print "Syslog Bind: %s:%s [pid:%s]" %(make_colors(host, 'green'), make_colors(str(port), 'cyan'), make_colors(PID, 'white', 'blue'))
             while 1:
                 data = sock.recv(65565)
                 if data:
@@ -879,8 +700,8 @@ class Psyslog(object):
         debug(show_priority_number2=show_priority_number)
 
         try:
-            client_address = self.make_colors(client_address[0], 'cyan')
-            times = self.make_colors(self.convert_time(int(time.time())), 'white', 'black')
+            client_address = make_colors(client_address[0], 'cyan')
+            times = make_colors(self.convert_time(int(time.time())), 'white', 'black')
             data_split = re.split('<|>', data, 2)
             debug(data_split=data_split)
             if data_split[0] == u'':
@@ -901,8 +722,9 @@ class Psyslog(object):
             debug(data=data)
             laengde = len(data)
             debug(laengde=laengde)
+            newLogString = "%s%s%s %s %s [%s]" % (make_colors(lineNumber, 'yellow'), make_colors('@', 'red'), times, client_address, data, str(pid))
             if laengde > 4:
-                newLogString = "%s%s%s %s %s [%s]" % (self.make_colors(lineNumber, 'yellow'), self.make_colors('@', 'red'), times, client_address, data, str(pid))
+                newLogString = "%s%s%s %s %s [%s]" % (make_colors(lineNumber, 'yellow'), make_colors('@', 'red'), times, client_address, data, str(pid))
                 if send_queue:
                     newLogString = "%s@%s %s %s\n" % (lineNumber, times, client_address[0], data)
                     self.sent_to_broker(newLogString)
@@ -916,12 +738,12 @@ class Psyslog(object):
 
                 if save_to_file:
                     self.save_to_file(message, times, facility_string, log_file_name, rotate)
-                lineNumber += 1
+            lineNumber += 1
 
             # if lineNumber > 10000000:
             # return newLogString
             # sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            return newLogString
+            return newLogString, lineNumber
 
         except KeyboardInterrupt:
             print "Closing .. by user"
@@ -929,26 +751,38 @@ class Psyslog(object):
         except:
             traceback.format_exc()
             print "Closing .. by system"
-            sys.exit(0)
+            #sys.exit(0)
 
-    def client(self, host='0.0.0.0', port=514, server_port=1514):
+    def _client(self, host='0.0.0.0', port=514, server_port=1514):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        if self.read_config('CLIENT', 'host', value= '0.0.0.0'):
+            host = self.read_config('CLIENT', 'host', value= '0.0.0.0')
+        if self.read_config('CLIENT', 'port', value= '1514'):
+            port = int(self.read_config('CLIENT', 'port', value= '1514'))
         try:
             sock.bind((host, port))
-            print "Syslog Client Bind: %s:%s [%s]" %(self.make_colors(host, 'green'), self.make_colors(str(port), 'cyan'), PID)
+            print "Syslog Client Bind: %s:%s [%s]" %(make_colors(host, 'green'), make_colors(str(port), 'cyan'), PID)
             while 1:
                 data, client_address = sock.recvfrom(65565)
                 if data:
                     if data == 'EXIT':
                         sys.exit('server shutdown ....')
-                    data = self.handle(data, client_address)
+                    data, lineNumber = self.handle(data, client_address)
                     sock.sendto(data, ('127.0.0.1', server_port))
         except:
-            sock.close()
             traceback.format_exc()
-            print "Closing .. by system"
-            sys.exit('SYSTEM EXIT !')
-
+            #print "Closing .. by system"
+            #print make_colors('SYSTEM EXIT !', 'white', 'lightred', attrs= ['blink'])
+            #sock.close()
+            #sys.exit('SYSTEM EXIT !')
+    def client(self, host = '0.0.0.0', port = 514, server_port = 1514):
+        if self.read_config('CLIENT', 'host', value= '0.0.0.0'):
+            host = self.read_config('CLIENT', 'host', value= '0.0.0.0')
+        if self.read_config('CLIENT', 'port', value= '1514'):
+            port = int(self.read_config('CLIENT', 'port', value= '1514'))
+        import client
+        client.monitor(host, port, server_port)
+        
     def shutdown(self, host='127.0.0.1', port=514):
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.sendto("EXIT", (host, port))
