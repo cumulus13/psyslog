@@ -238,7 +238,7 @@ class SyslogUDPHandler(SocketServer.BaseRequestHandler):
                 log_dir_pass = True
         if not log_dir_pass and os.path.isdir(log_dir):
             os.makedirs(log_dir)
-        
+        logfile_name = os.path.join(log_dir, logfile_name)
         if not self.read_config('LOGS', 'rotate'):
             self.write('LOGS', 'rotate', rotate)
         if self.read_config('LOGS', 'log_file_name'):
@@ -570,6 +570,8 @@ class Psyslog(object):
         return time.mktime(timestamps.timetuple())
 
     def save_to_file(self, message, timestamps, facility_string='', logfile_name='psyslog.log', rotate='1M'):
+        if not os.path.isdir(os.path.join(os.path.dirname(__file__), 'logs')):
+            os.makedirs(os.path.join(os.path.dirname(__file__), 'logs'))
         if not self.read_config('LOGS', 'rotate'):
             self.write('LOGS', 'rotate', rotate)
         if facility_string:
@@ -678,6 +680,7 @@ class Psyslog(object):
             self.write_config('DATABASE', 'database_type', 'sqlite')
         if not log_file_name:
             self.write_config('LOGS', 'log_file_name', 'psyslog.log')
+        log_file_name = os.path.join(os.path.dirname(__file__), 'logs', log_file_name)
         if not max_line:
             self.write_config('LOGS', 'max_line', 9999)
         if not rotate:
