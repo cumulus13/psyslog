@@ -95,13 +95,16 @@ def monitor(host = '0.0.0.0', port=514, server_port = 1514, foreground = False):
     global FOREGROUND
     FOREGROUND = foreground
     is_rebind = False
+    port = int(port)
     while 1:
         try:
             if check_open_port(port):
                 try:
                     main(is_rebind, host, port, server_port)
                 except:
+                    traceback.format_exc()
                     is_rebind = True
+                    port = int(port) + 1
                     pass
             else:
                 is_rebind = True

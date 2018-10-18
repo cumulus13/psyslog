@@ -258,13 +258,22 @@ class Psyslog(object):
         #         self.write('LOGS', 'start', start)
         #         return self.test_rotate_time()
 
-    def server(self, host='0.0.0.0', port=1514):
+    def server(self, host='0.0.0.0', port=None):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        
+        #print "PORT 0 =", port
         if self.read_config('SERVER', 'host', value= '0.0.0.0'):
-            host = self.read_config('SERVER', 'host', value= '0.0.0.0')
+            host_1 = self.read_config('SERVER', 'host', value= '0.0.0.0')
         if port == 1514 and self.read_config('SERVER', 'port', value= '1514'):
-            port = int(self.read_config('SERVER', 'port', value= '1514'))
+            port_1 = int(self.read_config('SERVER', 'port', value= '1514'))
+        if not port:
+            port = port_1
+        if not host:
+            host = host_1
+        if not host:
+            host = '0.0.0.0'
+        if not port:
+            port = 1514
+        #print "PORT 1 =", port
         port = int(port)
         try:
             sock.bind((host, port))
@@ -447,10 +456,13 @@ class Psyslog(object):
     def client(self, host = '0.0.0.0', port = 514, server_host = '127.0.0.1', server_port = 1514, foreground = False):
         if self.read_config('CLIENT', 'host', value= '0.0.0.0'):
             host = self.read_config('CLIENT', 'host', value= '0.0.0.0')
-        if self.read_config('CLIENT', 'port', value= '1514'):
-            port = int(self.read_config('CLIENT', 'port', value= '514'))
+        if port == 514 or port == '514':
+            if self.read_config('CLIENT', 'port', value= '514'):
+                port = int(self.read_config('CLIENT', 'port', value= '514'))
+        debug(port = port)        
         import client
         client.HOST = server_host
+        debug(server_port = server_port)
         client.monitor(host, port, server_port, foreground)
         
     def shutdown(self, host='127.0.0.1', port=514):
@@ -476,7 +488,7 @@ class Psyslog(object):
         parser.add_argument('-H', '--host', action='store', help='Host binding (SERVER/CLIENT) default:0.0.0.0 -- all network interface', default='0.0.0.0')
         parser.add_argument('-P', '--client-port', action='store', help='Port binding default: 514', default=514)
         parser.add_argument('-R', '--server-host', action='store', help='Host of Server default: 127.0.0.1', default= '127.0.0.1')
-        parser.add_argument('-S', '--server-port', action='store', help='Port binding default: 1514', default=1514)
+        parser.add_argument('-S', '--server-port', action='store', help='Port binding default: 1514', default=1514, type = int)
         parser.add_argument('-x', '--exit', action='store_true', help='shutdown/terminate server')
         parser.add_argument('-t', '--test', action='store_true', help='Test Send Message to port 514 (Client)')
         parser.add_argument('-f', '--foreground', action = 'store_true', help = 'Print data to foreground (CLIENT)')
@@ -491,7 +503,8 @@ class Psyslog(object):
                 self.server(args.host, args.server_port)
             if args.client:
                 print "PID:", PID
-                self.client(args.host, args.client_port, args.server_port, foreground = args.foreground)
+                debug(server_port = args.server_port)
+                self.client(args.host, args.client_port, args.server_host, args.server_port, foreground = args.foreground)
             if args.exit:
                 if args.server:
                     self.shutdown('127.0.0.1', args.server_port)
