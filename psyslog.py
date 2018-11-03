@@ -66,11 +66,11 @@ class Psyslog(object):
         elif str(level) == '1':
             return self.read_config('LEVEL_ALERT', 'fore', value='white'), self.read_config('LEVEL_ALERT', 'back', value='blue')
         elif str(level) == '2':
-            return self.read_config('LEVEL_CRITICAL', 'fore', value='white'), self.read_config('LEVEL_CRITICAL', 'back', value='green')
+            return self.read_config('LEVEL_CRITICAL', 'fore', value='black'), self.read_config('LEVEL_CRITICAL', 'back', value='green')
         elif str(level) == '3':
             return self.read_config('LEVEL_ERROR', 'fore', value='white'), self.read_config('LEVEL_ERROR', 'back', value='red')
         elif str(level) == '4':
-            return self.read_config('LEVEL_WARNING', 'fore', value='white'), self.read_config('LEVEL_WARNING', 'back', value='yellow')
+            return self.read_config('LEVEL_WARNING', 'fore', value='black'), self.read_config('LEVEL_WARNING', 'back', value='yellow')
         elif str(level) == '5':
             return self.read_config('LEVEL_NOTICE', 'fore', value='white'), self.read_config('LEVEL_NOTICE', 'back', value='cyan')
         elif str(level) == '6':

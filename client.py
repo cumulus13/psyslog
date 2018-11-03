@@ -12,7 +12,9 @@ p = psyslog.Psyslog()
 HOST = ''
 PORT = ''
 SERVER_HOST = p.read_config('SERVER', 'host', value='0.0.0.0')
-SERVER_PORT = int(p.read_config('SERVER', 'port', value= '1514'))
+SERVER_PORT = p.read_config('SERVER', 'port', value= '1514')
+if SERVER_PORT:
+    SERVER_PORT = int(SERVER_PORT)
 if SERVER_HOST == '0.0.0.0':
     SERVER_HOST = '127.0.0.1'
 if not SERVER_HOST:
@@ -23,7 +25,9 @@ if not SERVER_PORT:
 CLIENT_HOST = ''
 CLIENT_PORT = ''
 CLIENT_HOST = p.read_config('CLIENT', 'host', value='0.0.0.0')
-CLIENT_PORT = int(p.read_config('CLIENT', 'port', value= '514'))
+CLIENT_PORT = p.read_config('CLIENT', 'port', value= '514')
+if CLIENT_PORT:
+    CLIENT_PORT = int(CLIENT_PORT)
 if not CLIENT_HOST:
     CLIENT_HOST = '0.0.0.0'
 if not CLIENT_PORT:
