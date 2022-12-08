@@ -7,7 +7,7 @@
 #
 # Org file at https://gist.github.com/marcelom/4218010
 #
-
+from __future__ import print_function
 import click
 import sys
 import os
@@ -18,19 +18,34 @@ import time
 from make_colors import make_colors
 import re
 from datetime import datetime
-import syslog
+import syslogx as syslog
 import time
-import ConfigParser
-from debug import debug
-PID = os.getpid()
-HOST, PORT = "0.0.0.0", 514
+from configset import configset
+from pydebugger.debug import debug
 
+PID = os.getpid()
 lineNumber = 1
 
-
 class Psyslog(object):
+    
+    CONFIG = configset()
+    HOST = CONFIG.get_config('SERVER', 'host') or '127.0.0.1'
+    PORT = CONFIG.get_config('SERVER', 'port') or 1514
+    
     def __init__(self):
         super(Psyslog, self)
+        debug(HOST = self.HOST)
+        debug(PORT = self.PORT)
+        
+    def format_number(self, number, length = 10000):
+        number = str(number).strip()
+        if not str(number).isdigit():
+            return number
+        zeros = len(str(length)) - len(number)
+        r = ("0" * zeros) + str(number)
+        if len(r) == 1:
+            return "0" + r
+        return r    
 
     def sent_to_broker(self, newLogString, host="localhost", port=6379, db=1):
         '''function sent_to_broker
@@ -43,45 +58,47 @@ class Psyslog(object):
             port {number} -- [description] (default: {6379})
             db {number} -- [description] (default: {1})
         '''
-        if self.read_config('QUEUE', 'host'):
-            host = self.read_config('QUEUE', 'host')
-        if self.read_config('QUEUE', 'port'):
-            port = int(self.read_config('QUEUE', 'port'))
-        from hotqueue import HotQueue
-        queue = HotQueue("logqueue", host=host, port=port, db=db)
-        queue.put(newLogString)
+        if self.CONFIG.get_config('QUEUE', 'host'):
+            host = self.CONFIG.get_config('QUEUE', 'host')
+        if self.CONFIG.get_config('QUEUE', 'port'):
+            port = int(self.CONFIG.get_config('QUEUE', 'port'))
+        if host and port:
+            from hotqueue import HotQueue
+            queue = HotQueue("logqueue", host=host, port=port, db=db)
+            queue.put(newLogString)
 
     def convert_priority_to_severity(self, number):
         try:
             facility = int(number) / 8
             total_faciliy = facility*8
             severity = int(number) - total_faciliy
+            debug(severity = severity)
             return severity
         except:
             return 8
 
     def get_level_color_config(self, level):
         if str(level) == '0':
-            return self.read_config('LEVEL_EMERGENCY', 'fore', value='white'), self.read_config('LEVEL_EMERGENCY', 'back', value='magenta')
+            return self.CONFIG.get_config('LEVEL_EMERGENCY', 'fore', value='white'), self.CONFIG.get_config('LEVEL_EMERGENCY', 'back', value='magenta')
         elif str(level) == '1':
-            return self.read_config('LEVEL_ALERT', 'fore', value='white'), self.read_config('LEVEL_ALERT', 'back', value='blue')
+            return self.CONFIG.get_config('LEVEL_ALERT', 'fore', value='white'), self.CONFIG.get_config('LEVEL_ALERT', 'back', value='blue')
         elif str(level) == '2':
-            return self.read_config('LEVEL_CRITICAL', 'fore', value='black'), self.read_config('LEVEL_CRITICAL', 'back', value='green')
+            return self.CONFIG.get_config('LEVEL_CRITICAL', 'fore', value='black'), self.CONFIG.get_config('LEVEL_CRITICAL', 'back', value='green')
         elif str(level) == '3':
-            return self.read_config('LEVEL_ERROR', 'fore', value='white'), self.read_config('LEVEL_ERROR', 'back', value='red')
+            return self.CONFIG.get_config('LEVEL_ERROR', 'fore', value='white'), self.CONFIG.get_config('LEVEL_ERROR', 'back', value='red')
         elif str(level) == '4':
-            return self.read_config('LEVEL_WARNING', 'fore', value='black'), self.read_config('LEVEL_WARNING', 'back', value='yellow')
+            return self.CONFIG.get_config('LEVEL_WARNING', 'fore', value='black'), self.CONFIG.get_config('LEVEL_WARNING', 'back', value='yellow')
         elif str(level) == '5':
-            return self.read_config('LEVEL_NOTICE', 'fore', value='white'), self.read_config('LEVEL_NOTICE', 'back', value='cyan')
+            return self.CONFIG.get_config('LEVEL_NOTICE', 'fore', value='white'), self.CONFIG.get_config('LEVEL_NOTICE', 'back', value='cyan')
         elif str(level) == '6':
-            return self.read_config('LEVEL_INFO', 'fore', value='green'), self.read_config('LEVEL_INFO', 'back', value='black')
+            return self.CONFIG.get_config('LEVEL_INFO', 'fore', value='green'), self.CONFIG.get_config('LEVEL_INFO', 'back', value='black')
         elif str(level) == '7':
-            return self.read_config('LEVEL_DEBUG', 'fore', value='yellow'), self.read_config('LEVEL_DEBUG', 'back', value='black')
+            return self.CONFIG.get_config('LEVEL_DEBUG', 'fore', value='yellow'), self.CONFIG.get_config('LEVEL_DEBUG', 'back', value='black')
         else:
-            return self.read_config('LEVEL_UNKNOWN', 'fore', value='red'), self.read_config('LEVEL_UNKNOWN', 'back', value='white')
+            return self.CONFIG.get_config('LEVEL_UNKNOWN', 'fore', value='red'), self.CONFIG.get_config('LEVEL_UNKNOWN', 'back', value='white')
 
     def get_facility_color_config(self):
-        return self.read_config('FACILITY', 'fore', 'white'), self.read_config('FACILITY', 'back', 'green')
+        return self.CONFIG.get_config('FACILITY', 'fore', 'white'), self.CONFIG.get_config('FACILITY', 'back', 'green')
 
     def coloring(self, number, text, facility_string=''):
         '''function coloring
@@ -159,7 +176,10 @@ class Psyslog(object):
             file_config_path = os.path.join(os.path.dirname(__file__), os.path.basename(file_config_path))
         else:
             file_config_path = os.path.join(os.path.dirname(__file__), 'psyslog.ini')
-        import ConfigParser
+        try:
+            import ConfigParser
+        except:
+            import configparser as ConfigParser
         cfg = ConfigParser.RawConfigParser(allow_no_value=True)
         cfg.optionxform = str
         if not os.path.isfile(file_config_path):
@@ -233,12 +253,10 @@ class Psyslog(object):
         return time.mktime(timestamps.timetuple())
 
     def save_to_file(self, message, timestamps, facility_string='', logfile_name='psyslog.log', rotate='1M'):
-        if not os.path.isdir(os.path.join(os.path.dirname(__file__), 'logs')):
-            os.makedirs(os.path.join(os.path.dirname(__file__), 'logs'))
-        if not self.read_config('LOGS', 'rotate'):
-            self.write('LOGS', 'rotate', rotate)
-        if facility_string:
-            facility_string = " [" + facility_string + "] "
+        if not os.path.isdir(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'logs')):
+            os.makedirs(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'logs'))
+        rotate = rotate or self.CONFIG.get_config('LOGS', 'rotate')
+        if facility_string: facility_string = " [" + facility_string + "] "
         message = timestamps + facility_string + message + "\n"
         if os.path.isfile(logfile_name):
             with open(logfile_name, 'a') as logfile:
@@ -248,9 +266,9 @@ class Psyslog(object):
                 logfile.write(message)
         
         # if rotate:
-        #     if self.read_config('LOGS', 'start'):
+        #     if self.CONFIG.get_config('LOGS', 'start'):
         #         divider = datetime.datetime(1970,1,1)
-        #         seconds_start = (datetime.strptime(self.read_config('LOGS', 'start'), '%Y:%m:%d %H:%M:%S.%f').timetuple()-divider).days
+        #         seconds_start = (datetime.strptime(self.CONFIG.get_config('LOGS', 'start'), '%Y:%m:%d %H:%M:%S.%f').timetuple()-divider).days
         #         seconds_now = (datetime.datetime.fromtimestamp(time.time()).timetuple()-divider).days
         #         all_days = seconds_now - seconds_start
         #     else:
@@ -258,33 +276,25 @@ class Psyslog(object):
         #         self.write('LOGS', 'start', start)
         #         return self.test_rotate_time()
 
+    def set_data(self, data):
+        yield print(data)
+        
     def server(self, host='0.0.0.0', port=None):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        #print "PORT 0 =", port
-        if self.read_config('SERVER', 'host', value= '0.0.0.0'):
-            host_1 = self.read_config('SERVER', 'host', value= '0.0.0.0')
-        if port == 1514 and self.read_config('SERVER', 'port', value= '1514'):
-            port_1 = int(self.read_config('SERVER', 'port', value= '1514'))
-        if not port:
-            port = port_1
-        if not host:
-            host = host_1
-        if not host:
-            host = '0.0.0.0'
-        if not port:
-            port = 1514
-        #print "PORT 1 =", port
-        port = int(port)
+        host = host or self.CONFIG.get_config('SERVER', 'host', '0.0.0.0')
+        port = port or self.CONFIG.get_config('SERVER', 'port', '1514')
+        if isinstance(port, str): port = int(port)
         try:
             sock.bind((host, port))
             # sock.listen(5)
-            print "Syslog Bind: %s:%s [pid:%s]" %(make_colors(host, 'green'), make_colors(str(port), 'cyan'), make_colors(PID, 'white', 'blue'))
+            print("Syslog Bind: %s:%s [pid:%s]" %(make_colors(host, 'green'), make_colors(str(port), 'cyan'), make_colors(PID, 'white', 'blue')))
             while 1:
                 data = sock.recv(65565)
                 if data:
                     if data == 'EXIT':
                         sys.exit('server shutdown ....')
-                    print data
+                    for i in self.set_data(data):
+                        pass
                     # print "data =", data
                     # print "client_address =", client_address
                     # print self.handle(data, client_address)
@@ -297,17 +307,17 @@ class Psyslog(object):
         pid = os.getpid()
         global lineNumber
         data_ex = data
-        show_priority = self.read_config('GENERAL', 'show_priority')
-        send_queue = self.read_config('GENERAL', 'send_queue')
-        save_to_database = self.read_config('GENERAL', 'save_to_database')
-        save_to_file = self.read_config('GENERAL', 'save_to_file')
-        database_type = self.read_config('DATABASE', 'database_type')
-        log_file_name = self.read_config('LOGS', 'log_file_name')
-        max_line = self.read_config('LOGS', 'max_line')
-        rotate = self.read_config('LOGS', 'rotate')
-        debugger = self.read_config('DEBUG', 'debug')
-        debugger_server = self.read_config('DEBUG', 'debug_server')
-        show_priority_number = self.read_config('GENERAL', 'show_priority_number')
+        show_priority = self.CONFIG.get_config('GENERAL', 'show_priority')
+        send_queue = self.CONFIG.get_config('GENERAL', 'send_queue')
+        save_to_database = self.CONFIG.get_config('GENERAL', 'save_to_database')
+        save_to_file = self.CONFIG.get_config('GENERAL', 'save_to_file')
+        database_type = self.CONFIG.get_config('DATABASE', 'database_type')
+        log_file_name = self.CONFIG.get_config('LOGS', 'log_file_name')
+        max_line = self.CONFIG.get_config('LOGS', 'max_line')
+        rotate = self.CONFIG.get_config('LOGS', 'rotate')
+        debugger = self.CONFIG.get_config('DEBUG', 'debug')
+        debugger_server = self.CONFIG.get_config('DEBUG', 'debug_server')
+        show_priority_number = self.CONFIG.get_config('GENERAL', 'show_priority_number')
 
         debug(show_priority1=show_priority)
         debug(send_queue1=send_queue)
@@ -378,16 +388,19 @@ class Psyslog(object):
         try:
             client_address = make_colors(client_address[0], 'cyan')
             times = make_colors(self.convert_time(int(time.time())), 'white', 'black')
+            debug(data = data)
             data_split = re.split('<|>', data, 2)
             debug(data_split=data_split)
             if data_split[0] == u'':
                 number = data_split[1]
                 message = " ".join(data_split[2:]).strip()
+                debug(number=number)
+                debug(message=message)                
             else:
                 number = data_split[0]
                 message = " ".join(data_split[1:]).strip()
-            debug(number=number)
-            debug(message=message)
+                debug(number=number)
+                debug(message=message)
             if show_priority:
                 facility_string = syslog.FACILITY.get(int(self.convert_priority_to_severity(number)))
                 if show_priority_number:
@@ -398,11 +411,11 @@ class Psyslog(object):
             debug(data=data)
             laengde = len(data)
             debug(laengde=laengde)
-            newLogString = "%s%s%s %s %s [%s]" % (make_colors(lineNumber, 'yellow'), make_colors('@', 'red'), times, client_address, data, str(pid))
+            newLogString = "%s%s%s %s %s [%s]" % (make_colors(self.format_number(lineNumber), 'yellow'), make_colors('@', 'red'), times, client_address, data, str(pid))
             if laengde > 4:
-                newLogString = "%s%s%s %s %s [%s]" % (make_colors(lineNumber, 'yellow'), make_colors('@', 'red'), times, client_address, data, str(pid))
+                newLogString = "%s%s%s %s %s [%s]" % (make_colors(self.format_number(lineNumber), 'yellow'), make_colors('@', 'red'), times, client_address, data, str(pid))
                 if send_queue:
-                    newLogString = "%s@%s %s %s\n" % (lineNumber, times, client_address[0], data)
+                    newLogString = "%s@%s %s %s\n" % (self.format_number(lineNumber), times, client_address[0], data)
                     self.sent_to_broker(newLogString)
                 if lineNumber > max_line:
                     debug(lineNumber=lineNumber)
@@ -420,26 +433,28 @@ class Psyslog(object):
             # return newLogString
             # sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             if not newLogString:
-                newLogString = data 
+                newLogString = data
+            debug(newLogString = newLogString)
+            debug(lineNumber = lineNumber)
             return newLogString, lineNumber
 
         except KeyboardInterrupt:
-            print "Closing .. by user"
+            print ("Closing .. by user")
             sys.exit(0)
         except:
-            traceback.format_exc()
-            print "Closing .. by system"
+            print(traceback.format_exc())
+            print ("Closing .. by system")
             #sys.exit(0)
 
     def _client(self, host='0.0.0.0', port=514, server_port=1514):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        if self.read_config('CLIENT', 'host', value= '0.0.0.0'):
-            host = self.read_config('CLIENT', 'host', value= '0.0.0.0')
-        if self.read_config('CLIENT', 'port', value= '1514'):
-            port = int(self.read_config('CLIENT', 'port', value= '1514'))
+        if self.CONFIG.get_config('CLIENT', 'host', value= '0.0.0.0'):
+            host = self.CONFIG.get_config('CLIENT', 'host', value= '0.0.0.0')
+        if self.CONFIG.get_config('CLIENT', 'port', value= '1514'):
+            port = int(self.CONFIG.get_config('CLIENT', 'port', value= '1514'))
         try:
             sock.bind((host, port))
-            print "Syslog Client Bind: %s:%s [%s]" %(make_colors(host, 'green'), make_colors(str(port), 'cyan'), PID)
+            print ("Syslog Client Bind: %s:%s [%s]" %(make_colors(host, 'green'), make_colors(str(port), 'cyan'), PID))
             while 1:
                 data, client_address = sock.recvfrom(65565)
                 if data:
@@ -454,11 +469,11 @@ class Psyslog(object):
             #sock.close()
             #sys.exit('SYSTEM EXIT !')
     def client(self, host = '0.0.0.0', port = 514, server_host = '127.0.0.1', server_port = 1514, foreground = False):
-        if self.read_config('CLIENT', 'host', value= '0.0.0.0'):
-            host = self.read_config('CLIENT', 'host', value= '0.0.0.0')
+        if self.CONFIG.get_config('CLIENT', 'host', value= '0.0.0.0'):
+            host = self.CONFIG.get_config('CLIENT', 'host', value= '0.0.0.0')
         if port == 514 or port == '514':
-            if self.read_config('CLIENT', 'port', value= '514'):
-                port = int(self.read_config('CLIENT', 'port', value= '514'))
+            if self.CONFIG.get_config('CLIENT', 'port', value= '514'):
+                port = int(self.CONFIG.get_config('CLIENT', 'port', value= '514'))
         debug(port = port)        
         import client
         client.HOST = server_host
@@ -502,7 +517,7 @@ class Psyslog(object):
             if args.server:
                 self.server(args.host, args.server_port)
             if args.client:
-                print "PID:", PID
+                print ("PID:", PID)
                 debug(server_port = args.server_port)
                 self.client(args.host, args.client_port, args.server_host, args.server_port, foreground = args.foreground)
             if args.exit:
