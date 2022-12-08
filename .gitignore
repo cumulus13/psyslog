@@ -8,3 +8,4 @@
 *.hgignore
 *.hgtags
 psyslog.log 
+traceback.log
