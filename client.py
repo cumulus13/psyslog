@@ -20,8 +20,6 @@ SERVER_PORT = p.PORT or 1514
 if SERVER_PORT: SERVER_PORT = int(SERVER_PORT)
 if SERVER_HOST == '0.0.0.0': SERVER_HOST = '127.0.0.1'
 
-CLIENT_HOST = ''
-CLIENT_PORT = ''
 CLIENT_HOST = p.read_config('CLIENT', 'host', value='0.0.0.0') or '0.0.0.0'
 CLIENT_PORT = p.read_config('CLIENT', 'port', value= '516') or 516
 LINE_NUMBER = 1
@@ -74,8 +72,7 @@ def main(rebind=False, host = None, port = None, server_port = None):
     global CLIENT_HOST
     global CLIENT_PORT
     global SERVER_PORT
-    if server_port:
-        SERVER_PORT = server_port
+    if server_port: SERVER_PORT = server_port
     global PID
     if not host:
         host = CLIENT_HOST
@@ -89,7 +86,10 @@ def main(rebind=False, host = None, port = None, server_port = None):
     server = SocketServer.UDPServer((host, port), MyUDPHandler)
     server.serve_forever()
 
-def monitor(host = '0.0.0.0', port=516, server_port = 1514, foreground = False):
+def monitor(host = None, port=None, server_port = None, foreground = False):
+    host = host or '0.0.0.0'
+    port = port or 514
+    server_port = server_port or 1514
     debug(host = host)
     debug(port = port)
     debug(server_port = server_port)

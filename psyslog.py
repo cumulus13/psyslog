@@ -22,6 +22,7 @@ import syslogx as syslog
 import time
 from configset import configset
 from pydebugger.debug import debug
+import bitmath
 
 PID = os.getpid()
 lineNumber = 1
@@ -38,6 +39,7 @@ class Psyslog(object):
         debug(PORT = self.PORT)
         
     def format_number(self, number, length = 10000):
+        length = self.CONFIG.get('LOGS', 'max_line') or length
         number = str(number).strip()
         if not str(number).isdigit():
             return number
@@ -119,6 +121,7 @@ class Psyslog(object):
             else:   
                 facility_string = make_colors("[", 'white', 'black') + make_colors(facility_string, 'white', 'magenta') + make_colors("]", 'white', 'black') + " "
         severity = self.convert_priority_to_severity(number)
+        if not facility_string: facility_string = ''
         # print "severity =", severity
         if int(severity) == 0:
             fore_0, back_0 = self.get_level_color_config(0)
@@ -247,12 +250,14 @@ class Psyslog(object):
         '''
         x = datetime.fromtimestamp(time)
         # ct = make_colors(datetime.strftime(x, '%Y:%m:%d %H:%M:%S.%f'), 'magenta')
-        return datetime.strftime(x, '%Y:%m:%d %H:%M:%S.%f')
+        #return datetime.strftime(x, '%Y:%m:%d %H:%M:%S.%f')
+        return datetime.strftime(x, '%Y:%m:%d %H:%M:%S')
 
     def time_to_integer(self, timestamps):
         return time.mktime(timestamps.timetuple())
 
-    def save_to_file(self, message, timestamps, facility_string='', logfile_name='psyslog.log', rotate='1M'):
+    def save_to_file(self, message, timestamps, facility_string='', logfile_name='psyslog.log', rotate='100M'):
+        rotate = self.CONFIG.get_config('LOGS', 'rotate') or rotate
         if not os.path.isdir(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'logs')):
             os.makedirs(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'logs'))
         rotate = rotate or self.CONFIG.get_config('LOGS', 'rotate')
@@ -265,17 +270,11 @@ class Psyslog(object):
             with open(logfile_name, 'w') as logfile:
                 logfile.write(message)
         
-        # if rotate:
-        #     if self.CONFIG.get_config('LOGS', 'start'):
-        #         divider = datetime.datetime(1970,1,1)
-        #         seconds_start = (datetime.strptime(self.CONFIG.get_config('LOGS', 'start'), '%Y:%m:%d %H:%M:%S.%f').timetuple()-divider).days
-        #         seconds_now = (datetime.datetime.fromtimestamp(time.time()).timetuple()-divider).days
-        #         all_days = seconds_now - seconds_start
-        #     else:
-        #         start = datetime.strftime(datetime.now(), '%Y:%m:%d %H:%M:%S')
-        #         self.write('LOGS', 'start', start)
-        #         return self.test_rotate_time()
-
+        if bitmath.getsize(logfile_name).MB.value > bitmath.parse_string_unsafe(rotate).value:
+            with open(logfile_name, 'w') as logfile:
+                logfile.write("")
+                    
+        
     def set_data(self, data):
         yield print(data)
         
@@ -306,7 +305,6 @@ class Psyslog(object):
     def handle(self, data, client_address):
         pid = os.getpid()
         global lineNumber
-        data_ex = data
         show_priority = self.CONFIG.get_config('GENERAL', 'show_priority')
         send_queue = self.CONFIG.get_config('GENERAL', 'send_queue')
         save_to_database = self.CONFIG.get_config('GENERAL', 'save_to_database')
@@ -315,76 +313,19 @@ class Psyslog(object):
         log_file_name = self.CONFIG.get_config('LOGS', 'log_file_name')
         max_line = self.CONFIG.get_config('LOGS', 'max_line')
         rotate = self.CONFIG.get_config('LOGS', 'rotate')
-        debugger = self.CONFIG.get_config('DEBUG', 'debug')
-        debugger_server = self.CONFIG.get_config('DEBUG', 'debug_server')
         show_priority_number = self.CONFIG.get_config('GENERAL', 'show_priority_number')
 
-        debug(show_priority1=show_priority)
-        debug(send_queue1=send_queue)
-        debug(save_to_file1=save_to_file)
-        debug(save_to_database1=save_to_database)
-        debug(database_type1=database_type)
-        debug(log_file_name1=log_file_name)
-        debug(max_line1=max_line)
-        debug(rotate1=rotate)
-        debug(debugger1=debugger)
-        debug(debugger_server1=debugger_server)
-        debug(show_priority_number1=show_priority_number)
+        debug(show_priority = show_priority)
+        debug(send_queue = send_queue)
+        debug(save_to_file = save_to_file)
+        debug(save_to_database = save_to_database)
+        debug(database_type = database_type)
+        debug(log_file_name = log_file_name)
+        debug(max_line = max_line)
+        debug(rotate = rotate)
+        debug(show_priority_number = show_priority_number)
 
-        if not debugger:
-            self.write_config('DEBUG', 'debug', '')
-        else:
-            debugger = bool(debugger)
-        if not debugger_server:
-            self.write_config('DEBUG', 'debugger_server', '127.0.0.1:50001')
-            os.environ.update({'DEBUG_SERVER':'1'})    
-            os.environ.update({'DEBUGGER_SERVER':'127.0.0.1:50001'})
-        else:
-            os.environ.update({'DEBUG_SERVER':'1'})    
-            os.environ.update({'DEBUGGER_SERVER':debugger_server})
         
-        if not show_priority:
-            self.write_config('GENERAL', 'show_priority', '')
-        else:
-            show_priority = bool(show_priority)
-        if not send_queue:
-            self.write_config('GENERAL', 'send_queue', '')
-        else:
-            send_queue = bool(send_queue)
-        if not save_to_database:
-            self.write_config('GENERAL', 'save_to_database', '')
-        else:
-            save_to_database = bool(save_to_database)    
-        if not save_to_file:
-            self.write_config('GENERAL', 'save_to_file', '')
-        else:
-            save_to_file = bool(save_to_file)
-        if not database_type:
-            self.write_config('DATABASE', 'database_type', 'sqlite')
-        if not log_file_name:
-            self.write_config('LOGS', 'log_file_name', 'psyslog.log')
-        log_file_name = os.path.join(os.path.dirname(__file__), 'logs', log_file_name)
-        if not max_line:
-            self.write_config('LOGS', 'max_line', 9999)
-        if not rotate:
-            self.write_config('LOGS', 'rotate', '1M')
-        if not show_priority_number:
-            self.write_config('GENERAL', 'show_priority_number', '')
-        else:
-            show_priority_number = bool(show_priority_number)
-
-        debug(show_priority2=show_priority)
-        debug(send_queue2=send_queue)
-        debug(save_to_file2=save_to_file)
-        debug(save_to_database2=save_to_database)
-        debug(database_type2=database_type)
-        debug(log_file_name2=log_file_name)
-        debug(max_line2=max_line)
-        debug(rotate2=rotate)
-        debug(debugger2=debugger)
-        debug(debugger_server2=debugger_server)
-        debug(show_priority_number2=show_priority_number)
-
         try:
             client_address = make_colors(client_address[0], 'cyan')
             times = make_colors(self.convert_time(int(time.time())), 'white', 'black')
@@ -401,12 +342,13 @@ class Psyslog(object):
                 message = " ".join(data_split[1:]).strip()
                 debug(number=number)
                 debug(message=message)
-            if show_priority:
+            if self.CONFIG.get_config('GENERAL', 'show_priority'):
                 facility_string = syslog.FACILITY.get(int(self.convert_priority_to_severity(number)))
-                if show_priority_number:
+                if self.CONFIG.get_config('GENERAL', 'show_priority_number'):
                     data = self.coloring(number, data, facility_string)
                 else:
                     data = self.coloring(number, message, facility_string)
+            
             data = self.coloring(number, data)
             debug(data=data)
             laengde = len(data)
@@ -417,7 +359,7 @@ class Psyslog(object):
                 if send_queue:
                     newLogString = "%s@%s %s %s\n" % (self.format_number(lineNumber), times, client_address[0], data)
                     self.sent_to_broker(newLogString)
-                if lineNumber > max_line:
+                if lineNumber > (self.CONFIG.get_config('LOGS', 'max_line') or 100000):
                     debug(lineNumber=lineNumber)
                     if sys.platform == 'win32':
                         os.system('cls')
@@ -468,16 +410,17 @@ class Psyslog(object):
             #print make_colors('SYSTEM EXIT !', 'white', 'lightred', attrs= ['blink'])
             #sock.close()
             #sys.exit('SYSTEM EXIT !')
-    def client(self, host = '0.0.0.0', port = 514, server_host = '127.0.0.1', server_port = 1514, foreground = False):
-        if self.CONFIG.get_config('CLIENT', 'host', value= '0.0.0.0'):
-            host = self.CONFIG.get_config('CLIENT', 'host', value= '0.0.0.0')
-        if port == 514 or port == '514':
-            if self.CONFIG.get_config('CLIENT', 'port', value= '514'):
-                port = int(self.CONFIG.get_config('CLIENT', 'port', value= '514'))
-        debug(port = port)        
+    def client(self, host = None, port = None, server_host = None, server_port = None, foreground = False):
         import client
-        client.HOST = server_host
+        host = host or self.CONFIG.get_config('CLIENT', 'host') or '0.0.0.0'
+        port = port or self.CONFIG.get_config('CLIENT', 'port') or 514
+        server_host = server_host or self.CONFIG.get_config('SERVER', 'host') or '0.0.0.0'
+        server_port = server_port or self.CONFIG.get_config('SERVER', 'port') or 1514        
+        debug(host = host)
+        debug(port = port)
+        debug(server_host = server_host)
         debug(server_port = server_port)
+        
         client.monitor(host, port, server_port, foreground)
         
     def shutdown(self, host='127.0.0.1', port=514):
