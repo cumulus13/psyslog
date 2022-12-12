@@ -4,6 +4,7 @@ from make_colors import make_colors
 import traceback
 import socket
 import sys
+import signal
 import os
 import time
 PID = os.getpid()
@@ -13,8 +14,6 @@ PORT = ''
 
 import psyslog
 p = psyslog.Psyslog()
-debug(dir_p = dir(p))
-
 SERVER_HOST = p.HOST or '127.0.0.1'
 SERVER_PORT = p.PORT or 1514
 if SERVER_PORT: SERVER_PORT = int(SERVER_PORT)
@@ -34,9 +33,14 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
     when sending data back via sendto().
     """
     
+    SOCKET = None
+    
     def generator(self, data, server_address, socket):
+        #print("run generator ....")
+        debug(data = data)
+        debug(server_address = server_address)
         yield socket.sendto(data, server_address)
-
+        
     def handle(self):
         global CLIENT_HOSTHOST
         global CLIENT_HOSTPORT
@@ -45,9 +49,11 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         data = self.request[0].strip()
         debug(data = data)
         socket = self.request[1]
+        self.SOCKET = socket
         # print "{} wrote:".format(self.client_address[0])
         # print data
         server_address = (SERVER_HOST, SERVER_PORT)
+        self.server_address = server_address
         debug(self_client_address = self.client_address)
         debug(data = data)
         data, LINE_NUMBER = p.handle(data, self.client_address)
@@ -56,6 +62,8 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
             pass
         LINE_NUMBER += 1
         if FOREGROUND: print (str(LINE_NUMBER) + "@" + data.unicode('utf-8'))
+
+udphandle = MyUDPHandler
 
 def check_open_port(port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -68,25 +76,27 @@ def check_open_port(port):
         return False
         # print "SOCK CLOSED"
 
-def main(rebind=False, host = None, port = None, server_port = None):
+def main(rebind=False, host = None, port = None, server_port = None, this_udphandle = None):
     global CLIENT_HOST
     global CLIENT_PORT
     global SERVER_PORT
     if server_port: SERVER_PORT = server_port
     global PID
-    if not host:
-        host = CLIENT_HOST
-    if not port:
-        port = int(CLIENT_PORT)
+    if not host: host = CLIENT_HOST
+    if not port: port = int(CLIENT_PORT)
     if rebind:
-        print ("Syslog Client (%s) Bind: %s:%s [%s]" %(make_colors('Re', 'white', 'lightred'), make_colors(host, 'green'), make_colors(str(port), 'cyan'), PID))
+        print ("Syslog Client (%s) Bind: %s:%s [%s]" %(make_colors('Re', 'lw', 'r'), make_colors(host, 'lw', 'm'), make_colors(str(port), 'lw', 'bl'), make_colors(str(PID), 'b', 'y')))
     else:
-        print ("Syslog Client Bind: %s:%s [%s]" %(make_colors(host, 'green'), make_colors(str(port), 'cyan'), PID))
-
-    server = SocketServer.UDPServer((host, port), MyUDPHandler)
-    server.serve_forever()
-
-def monitor(host = None, port=None, server_port = None, foreground = False):
+        print ("Syslog Client Bind: %s:%s [%s]" %(make_colors(host, 'b', 'y'), make_colors(str(port), 'b', 'lc'), make_colors(str(PID), 'lw', 'm')))
+    
+    udphandle = this_udphandle or udphandle
+    try:
+        server = SocketServer.UDPServer((host, port), udphandle)
+        server.serve_forever()
+    except KeyboardInterrupt:
+        os.kill(os.getpid(), signal.SIGTERM)
+        
+def monitor(host = None, port=None, server_port = None, foreground = False, udphandle = None):
     host = host or '0.0.0.0'
     port = port or 514
     server_port = server_port or 1514
@@ -102,7 +112,7 @@ def monitor(host = None, port=None, server_port = None, foreground = False):
         try:
             if check_open_port(port):
                 try:
-                    main(is_rebind, host, port, server_port)
+                    main(is_rebind, host, port, server_port, udphandle)
                 except:
                     traceback.format_exc()
                     is_rebind = True

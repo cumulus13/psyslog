@@ -23,6 +23,7 @@ import time
 from configset import configset
 from pydebugger.debug import debug
 import bitmath
+import signal
 
 PID = os.getpid()
 lineNumber = 1
@@ -32,9 +33,13 @@ class Psyslog(object):
     CONFIG = configset()
     HOST = CONFIG.get_config('SERVER', 'host') or '127.0.0.1'
     PORT = CONFIG.get_config('SERVER', 'port') or 1514
+    CLIENT_HOST = None
+    CLIENT_PORT = None
+    facility_string = None
+    lineNumber = 0
     
     def __init__(self):
-        super(Psyslog, self)
+        #super(Psyslog, self).__init__()
         debug(HOST = self.HOST)
         debug(PORT = self.PORT)
         
@@ -327,6 +332,7 @@ class Psyslog(object):
         debug(show_priority_number = show_priority_number)
 
         dtime = None
+        facility_string = ''
         try:
             client_address = make_colors(client_address[0], 'cyan')
             times = make_colors(self.convert_time(int(time.time())), 'white', 'black')
@@ -436,6 +442,7 @@ class Psyslog(object):
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.sendto("EXIT", (host, port))
         s.close()
+        os.kill(os.getpid(), signal.SIGTERM)
 
     def tester(self):
         syslog.syslog('TEST MESSAGE EMERGENCY', 0, 5)
@@ -467,19 +474,27 @@ class Psyslog(object):
                 self.tester()
                 sys.exit(0)
             if args.server:
-                self.server(args.host, args.server_port)
+                self.server((args.server_host or args.host), args.server_port)
+                self.HOST = args.host or self.HOST
+                self.PORT = args.server_port or self.PORT
             if args.client:
                 print ("PID:", PID)
                 debug(server_port = args.server_port)
                 self.client(args.host, args.client_port, args.server_host, args.server_port, foreground = args.foreground)
+                self.HOST = args.server_host or self.HOST
+                self.PORT = args.server_port or self.PORT
+                self.CLIENT_HOST = args.host
+                self.CLIENT_PORT = args.port
             if args.exit:
+                host = (args.host or args.server_host)
+                if host == '0.0.0.0': host = '127.0.0.1'                
                 if args.server:
-                    self.shutdown('127.0.0.1', args.server_port)
+                    self.shutdown(host, args.server_port)
                 elif args.client:
-                    self.shutdown('127.0.0.1', args.client_port)
+                    self.shutdown(host, args.client_port)
                 else:
-                    self.shutdown('127.0.0.1', args.server_port)                
-                    self.shutdown('127.0.0.1', args.client_port)
+                    self.shutdown(host, args.server_port)                
+                    self.shutdown(host, args.client_port)
 
 
 if __name__ == "__main__":
