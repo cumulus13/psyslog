@@ -25,6 +25,9 @@ LINE_NUMBER = 1
 PID = os.getpid()
 FOREGROUND = False
 
+class Server(SocketServer.UDPServer):
+    allow_reuse_address = True
+
 class MyUDPHandler(SocketServer.BaseRequestHandler):
     """
     This class works similar to the TCP handler class, except that
@@ -49,10 +52,14 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         data = self.request[0].strip()
         debug(data = data)
         socket = self.request[1]
+        debug(socket = socket)
+        #socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.SOCKET = socket
+        
         # print "{} wrote:".format(self.client_address[0])
         # print data
         server_address = (SERVER_HOST, SERVER_PORT)
+        debug(server_address = server_address)
         self.server_address = server_address
         debug(self_client_address = self.client_address)
         debug(data = data)
@@ -66,14 +73,19 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
 udphandle = MyUDPHandler
 
 def check_open_port(port):
+    debug(port = port)
+    
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
         sock.bind(('0.0.0.0', int(port)))
         sock.settimeout(0)
         # print "SOCK OPEN"
         return True
     except:
-        return False
+        #print(traceback.format_exc())
+        os.kill(os.getpid(), signal.SIGTERM)
+        #return False
         # print "SOCK CLOSED"
 
 def main(rebind=False, host = None, port = None, server_port = None, this_udphandle = None):
@@ -89,11 +101,20 @@ def main(rebind=False, host = None, port = None, server_port = None, this_udphan
     else:
         print ("Syslog Client Bind: %s:%s [%s]" %(make_colors(host, 'b', 'y'), make_colors(str(port), 'b', 'lc'), make_colors(str(PID), 'lw', 'm')))
     
-    udphandle = this_udphandle or udphandle
+    udphandle = this_udphandle or MyUDPHandler
+    debug(udphandle = udphandle)
+    debug(host = host)
+    debug(port = port)
+    debug(SERVER_HOST = SERVER_HOST)
+    debug(SERVER_PORT = SERVER_PORT)
     try:
-        server = SocketServer.UDPServer((host, port), udphandle)
+        #server = SocketServer.UDPServer((host, port), udphandle)
+        server = Server((host, port), udphandle)
         server.serve_forever()
     except KeyboardInterrupt:
+        os.kill(os.getpid(), signal.SIGTERM)
+    except:
+        print(traceback.format_exc())
         os.kill(os.getpid(), signal.SIGTERM)
         
 def monitor(host = None, port=None, server_port = None, foreground = False, udphandle = None):
@@ -114,18 +135,18 @@ def monitor(host = None, port=None, server_port = None, foreground = False, udph
                 try:
                     main(is_rebind, host, port, server_port, udphandle)
                 except:
-                    traceback.format_exc()
-                    is_rebind = True
-                    port = int(port) + 1
+                    print(traceback.format_exc())
+                    #is_rebind = True
+                    #port = int(port) + 1
                     pass
             else:
-                is_rebind = True
+                #is_rebind = True
                 time.sleep(1)
         except:
-            is_rebind = True
+            #is_rebind = True
             error = traceback.format_exc()
             print ("ERROR:", error)
-            pass
+            os.kill(os.getpid(), signal.SIGTERM)
                 
 if __name__ == "__main__":
     print ("PID:", PID)

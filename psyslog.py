@@ -13,7 +13,10 @@ import sys
 import os
 import traceback
 import socket
-import SocketServer
+if sys.version_info.major == 2:
+    import SocketServer
+else:
+    import socketserver
 import time
 from make_colors import make_colors
 import re
@@ -334,7 +337,17 @@ class Psyslog(object):
         dtime = None
         facility_string = ''
         try:
-            client_address = make_colors(client_address[0], 'cyan')
+            data_client_ip = re.findall('Original Address=(\d{0,3}\.\d{0,3}\.\d{0,3}\.\d{0,3})', data)
+            debug(data_client_ip = data_client_ip)
+            if data_client_ip:
+                client_address = data_client_ip[0]
+                data = re.sub('Original Address=\d{0,3}\.\d{0,3}\.\d{0,3}\.\d{0,3}', '', data)
+                debug(data = data)
+                client_address = make_colors(client_address, 'cyan')
+            else:
+                client_address = make_colors(client_address[0], 'cyan')
+                        
+            #client_address = make_colors(client_address[0], 'cyan')
             times = make_colors(self.convert_time(int(time.time())), 'white', 'black')
             debug(data = data)
             data_split = re.split('<|>', data, 2)
