@@ -261,6 +261,52 @@ class Psyslog(object):
         # ct = make_colors(datetime.strftime(x, '%Y:%m:%d %H:%M:%S.%f'), 'magenta')
         #return datetime.strftime(x, '%Y:%m:%d %H:%M:%S.%f')
         return datetime.strftime(x, '%Y:%m:%d %H:%M:%S')
+    
+    def convert_time2(self, time):
+        '''function convert time
+        
+        Convert Integer to strftime {string} time
+        based on format
+        
+        Arguments:
+            datetime {str} -- string datetime, format example: 'Jan 16 09:53:48' 
+        
+        Returns:
+            string -- format: 'YEAR:MONT:DAY HOUR:MINUTE:SECOND:MILISECOND'
+        '''
+        debug(time = time)
+        #c = re.findall(" \d{1} ", time)
+        #if c:
+            #c1 = c[0].strip()
+            #c1 = " 0" + c1 + " "
+            #time = time.replace(c[0], c1)
+        x = datetime.strptime(time, '%Y %b %d %H:%M:%S')
+        # ct = make_colors(datetime.strftime(x, '%Y:%m:%d %H:%M:%S.%f'), 'magenta')
+        #return datetime.strftime(x, '%Y:%m:%d %H:%M:%S.%f')
+        return datetime.strftime(x, '%Y:%m:%d %H:%M:%S')
+    
+    def convert_time3(self, time):
+        '''function convert time
+        
+        Convert Integer to strftime {string} time
+        based on format
+        
+        Arguments:
+            datetime {str} -- string datetime, format example: 'Jan 16 09:53:48' 
+        
+        Returns:
+            string -- format: 'YEAR:MONT:DAY HOUR:MINUTE:SECOND:MILISECOND'
+        '''
+        debug(time = time)
+        c = re.findall(" \d{1} ", time)
+        if c:
+            c1 = c[0].strip()
+            c1 = " 0" + c1 + " "
+            time = time.replace(c[0], c1)
+        x = datetime.strptime(time, '%Y %m %H:%M:%S')
+        # ct = make_colors(datetime.strftime(x, '%Y:%m:%d %H:%M:%S.%f'), 'magenta')
+        #return datetime.strftime(x, '%Y:%m:%d %H:%M:%S.%f')
+        return datetime.strftime(x, '%Y:%m:%d %H:%M:%S')    
 
     def time_to_integer(self, timestamps):
         return time.mktime(timestamps.timetuple())
@@ -288,12 +334,15 @@ class Psyslog(object):
         yield print(data)
         
     def server(self, host='0.0.0.0', port=None):
+        debug(host = host)
+        debug(port = port)
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         host = host or self.CONFIG.get_config('SERVER', 'host', '0.0.0.0')
         port = port or self.CONFIG.get_config('SERVER', 'port', '1514')
+        debug(port = port)
         if isinstance(port, str): port = int(port)
         try:
-            sock.bind((host, port))
+            sock.bind((host, int(port[0])))
             # sock.listen(5)
             print("Syslog Bind: %s:%s [pid:%s]" %(make_colors(host, 'green'), make_colors(str(port), 'cyan'), make_colors(PID, 'white', 'blue')))
             while 1:
@@ -313,6 +362,8 @@ class Psyslog(object):
             
     def handle(self, data, client_address):
         pid = os.getpid()
+        hostname = ''
+        app = ''
         global lineNumber
         show_priority = self.CONFIG.get_config('GENERAL', 'show_priority')
         send_queue = self.CONFIG.get_config('GENERAL', 'send_queue')
@@ -343,13 +394,31 @@ class Psyslog(object):
                 client_address = data_client_ip[0]
                 data = re.sub('Original Address=\d{0,3}\.\d{0,3}\.\d{0,3}\.\d{0,3}', '', data)
                 debug(data = data)
-                client_address = make_colors(client_address, 'cyan')
+                client_address = make_colors(client_address, 'lc')
             else:
-                client_address = make_colors(client_address[0], 'cyan')
-                        
-            #client_address = make_colors(client_address[0], 'cyan')
-            times = make_colors(self.convert_time(int(time.time())), 'white', 'black')
+                client_address = make_colors(client_address[0], 'lc')
             debug(data = data)
+            data = re.sub("\S{0,3} \d{0,2} \d{0,2}:\d{0,2}:\d{0,2} \d{0,3}\.\d{0,3}\.\d{0,3}\.\d{0,3} Kiwi_Syslog_Server  ", "", data)
+            debug(data = data)
+            
+            #client_address = make_colors(client_address[0], 'cyan')
+            times = re.findall("\S{0,3} \d{0,2} \d{0,2}:\d{0,2}:\d{0,2} .*? ", data)
+            if times:
+                data = re.sub("\S{0,3} \d{0,2} \d{0,2}:\d{0,2}:\d{0,2} .*? ", '', data)
+                times, hostname = re.findall("(\S{0,3} \d{0,2} \d{0,2}:\d{0,2}:\d{0,2}) (.*?) ", times[0])[0]
+                try:
+                    times = make_colors(self.convert_time2(str(datetime.now().year) + " " + times), 'white', 'black')
+                except:
+                    try:
+                        times = make_colors(self.convert_time2(str(datetime.now().year) + times), 'white', 'black')
+                    except:
+                        times = make_colors(self.convert_time3(str(datetime.now().year) + times), 'white', 'black')
+            else:
+                times = make_colors(self.convert_time(int(time.time())), 'white', 'black')
+            debug(times = times)
+            
+            debug(data = data)
+            
             data_split = re.split('<|>', data, 2)
             debug(data_split=data_split)
             if data_split[0] == u'':
@@ -362,6 +431,16 @@ class Psyslog(object):
                 message = " ".join(data_split[1:]).strip()
                 debug(number=number)
                 debug(message=message)
+            app = re.findall("^.*?: ", message)
+            debug(app = app)
+            if app:
+                message = re.sub("^.*?: ", "", message).strip()
+                debug(data = data)
+                app = app[0].strip()
+            else:
+                app = ''
+            debug(message = message)
+            
             if re.findall("\S{0,3}  \d{0,1} \d{0,2}:\d{0,2}:\d{0,2} ", message):
                 dtime = re.findall("\S{0,3}  \d{0,1} \d{0,2}:\d{0,2}:\d{0,2} ", message)
                 if dtime:
@@ -382,11 +461,11 @@ class Psyslog(object):
             debug(data=data)
             laengde = len(data)
             debug(laengde=laengde)
-            newLogString = "%s%s%s %s %s [%s]" % (make_colors(self.format_number(lineNumber), 'yellow'), make_colors('@', 'red'), times, client_address, data, str(pid))
+            newLogString = "%s%s%s %s %s%s [%s]" % (make_colors(self.format_number(lineNumber), 'yellow'), make_colors('@', 'red'), times, client_address, make_colors(app, 'lb'), data, str(pid))
             if laengde > 4:
-                newLogString = "%s%s%s %s %s [%s]" % (make_colors(self.format_number(lineNumber), 'yellow'), make_colors('@', 'red'), times, client_address, data, str(pid))
+                newLogString = "%s%s%s %s %s%s [%s]" % (make_colors(self.format_number(lineNumber), 'yellow'), make_colors('@', 'red'), times, client_address, make_colors(app, 'lb'), data, str(pid))
                 if send_queue:
-                    newLogString = "%s@%s %s %s\n" % (self.format_number(lineNumber), times, client_address[0], data)
+                    newLogString = "%s@%s %s %s%s [%s]" % (self.format_number(lineNumber), times, client_address, app, data, str(pid))
                     self.sent_to_broker(newLogString)
                 if lineNumber > (self.CONFIG.get_config('LOGS', 'max_line') or 100000):
                     debug(lineNumber=lineNumber)
@@ -475,7 +554,7 @@ class Psyslog(object):
         parser.add_argument('-H', '--host', action='store', help='Host binding (SERVER/CLIENT) default:0.0.0.0 -- all network interface', default='0.0.0.0')
         parser.add_argument('-P', '--client-port', action='store', help='Port binding default: 514', default=514)
         parser.add_argument('-R', '--server-host', action='store', help='Host of Server default: 127.0.0.1', default= '127.0.0.1')
-        parser.add_argument('-S', '--server-port', action='store', help='Port binding default: 1514', default=1514, type = int)
+        parser.add_argument('-S', '--server-port', action='store', help='Port binding default: 1514', default=1514, type = int, nargs = '*')
         parser.add_argument('-x', '--exit', action='store_true', help='shutdown/terminate server')
         parser.add_argument('-t', '--test', action='store_true', help='Test Send Message to port 514 (Client)')
         parser.add_argument('-f', '--foreground', action = 'store_true', help = 'Print data to foreground (CLIENT)')

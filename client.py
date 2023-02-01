@@ -58,15 +58,31 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         
         # print "{} wrote:".format(self.client_address[0])
         # print data
-        server_address = (SERVER_HOST, SERVER_PORT)
-        debug(server_address = server_address)
-        self.server_address = server_address
         debug(self_client_address = self.client_address)
         debug(data = data)
         data, LINE_NUMBER = p.handle(data, self.client_address)
-        #socket.sendto(data, server_address)
-        for i in self.generator(data, server_address, socket):
-            pass
+        
+        #server_address = (SERVER_HOST, SERVER_PORT)
+        if isinstance(SERVER_HOST, list) and isinstance(SERVER_PORT, list):
+            for s in SERVER_HOST:
+                for po in SERVER_PORT:
+                    server_address = (s, po)
+                    debug(server_address = server_address)
+                    self.server_address = server_address
+                    
+                    #socket.sendto(data, server_address)
+                    for i in self.generator(data, server_address, socket):
+                        pass
+        elif not isinstance(SERVER_HOST, list) and isinstance(SERVER_PORT, list):
+            for po in SERVER_PORT:
+                server_address = (SERVER_HOST, po)
+                debug(server_address = server_address)
+                self.server_address = server_address
+                
+                #socket.sendto(data, server_address)
+                for i in self.generator(data, server_address, socket):
+                    pass
+                
         LINE_NUMBER += 1
         if FOREGROUND: print (str(LINE_NUMBER) + "@" + data.unicode('utf-8'))
 
