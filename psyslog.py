@@ -46,6 +46,27 @@ class Psyslog(object):
         debug(HOST = self.HOST)
         debug(PORT = self.PORT)
         
+    def import_handle(self, handle_name, file_path = None):
+        file_path = file_path or os.path.join(os.path.dirname(os.path.realpath(__file__)), handle_name + ".py")
+        if sys.version_info.major == 3 and sys.version_info.minor > 4:
+            import importlib.util
+            if os.path.splitext(os.path.basename(file_path))[-1] == ".py": handle_name = os.path.splitext(os.path.basename(file_path))[0]
+            spec = importlib.util.spec_from_file_location(handle_name, file_path)
+            module_name = importlib.util.module_from_spec(spec)
+            sys.modules[module_name] = module_name
+            spec.loader.exec_module(module_name)
+            return module_name
+        
+        elif sys.version_info.major == 3 and sys.version_info.minor < 5:
+            from importlib.machinery import SourceFileLoader
+            module_name = SourceFileLoader(handle_name, file_path).load_module()
+            return module_name
+        else:
+            import imp
+            module_name = imp.load_source(handle_name, file_path)
+            return module_name
+            
+            
     def format_number(self, number, length = 10000):
         length = self.CONFIG.get('LOGS', 'max_line') or length
         number = str(number).strip()
@@ -518,6 +539,7 @@ class Psyslog(object):
             #sock.close()
             #sys.exit('SYSTEM EXIT !')
     def client(self, host = None, port = None, server_host = None, server_port = None, foreground = False):
+            
         import client
         host = host or self.CONFIG.get_config('CLIENT', 'host') or '0.0.0.0'
         port = port or self.CONFIG.get_config('CLIENT', 'port') or 514
@@ -556,8 +578,10 @@ class Psyslog(object):
         parser.add_argument('-R', '--server-host', action='store', help='Host of Server default: 127.0.0.1', default= '127.0.0.1')
         parser.add_argument('-S', '--server-port', action='store', help='Port binding default: 1514', default=1514, type = int, nargs = '*')
         parser.add_argument('-x', '--exit', action='store_true', help='shutdown/terminate server')
-        parser.add_argument('-t', '--test', action='store_true', help='Test Send Message to port 514 (Client)')
+        parser.add_argument('-T', '--test', action='store_true', help='Test Send Message to port 514 (Client)')
         parser.add_argument('-f', '--foreground', action = 'store_true', help = 'Print data to foreground (CLIENT)')
+        parser.add_argument('-t', '--type', help = 'Type of log, use --support to get list of support log type', action = 'store')
+        parser.add_argument('--support', help = 'Get list of log type support', action = 'store_true')
         if len(sys.argv) == 1:
             parser.print_help()
         else:
