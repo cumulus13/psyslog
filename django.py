@@ -10,6 +10,7 @@ from configset import configset
 import json
 import argparse
 import shutil
+import re
 from pydebugger.debug import debug
 
 print("PID:", os.getpid())
@@ -24,21 +25,21 @@ class Fanout(object):
 
     @classmethod
     def set_color(self, level):
-        if 'emerg' in 'emerge' in str(level):
+        if 'emerg' in 'emerge' in str(level).lower():
             return "EMERGE", self.CONFIG.get_config('LEVEL_EMERGENCY', 'fore', value='white'), self.CONFIG.get_config('LEVEL_EMERGENCY', 'back', value='magenta')
-        elif 'aler' in str(level):
+        elif 'aler' in str(level).lower():
             return "ALERT", self.CONFIG.get_config('LEVEL_ALERT', 'fore', value='white'), self.CONFIG.get_config('LEVEL_ALERT', 'back', value='blue')
-        elif 'crit' in str(level):
+        elif 'crit' in str(level).lower():
             return "CRITI", self.CONFIG.get_config('LEVEL_CRITICAL', 'fore', value='black'), self.CONFIG.get_config('LEVEL_CRITICAL', 'back', value='green')
-        elif 'err' in str(level):
+        elif 'err' in str(level).lower():
             return "ERROR", self.CONFIG.get_config('LEVEL_ERROR', 'fore', value='white'), self.CONFIG.get_config('LEVEL_ERROR', 'back', value='red')
-        elif 'warn' in str(level):
+        elif 'warn' in str(level).lower():
             return "WARNI", self.CONFIG.get_config('LEVEL_WARNING', 'fore', value='black'), self.CONFIG.get_config('LEVEL_WARNING', 'back', value='yellow')
-        elif 'not' in str(level):
+        elif 'not' in str(level).lower():
             return "NOTIC", self.CONFIG.get_config('LEVEL_NOTICE', 'fore', value='black'), self.CONFIG.get_config('LEVEL_NOTICE', 'back', value='cyan')
-        elif 'inf' in str(level):
+        elif 'inf' in str(level).lower():
             return "INFO",  self.CONFIG.get_config('LEVEL_INFO', 'fore', value='green'), self.CONFIG.get_config('LEVEL_INFO', 'back', value='black')
-        elif 'deb' in str(level):
+        elif 'deb' in str(level).lower():
             return "DEBUG", self.CONFIG.get_config('LEVEL_DEBUG', 'fore', value='yellow'), self.CONFIG.get_config('LEVEL_DEBUG', 'back', value='black')
         else:
             return "UNKNOWN", self.CONFIG.get_config('LEVEL_UNKNOWN', 'fore', value='red'), self.CONFIG.get_config('LEVEL_UNKNOWN', 'back', value='white')
@@ -47,28 +48,44 @@ class Fanout(object):
     @classmethod
     def call_back(self, ch, met, prop, body):
         #print("%s [x] Received message: %s" % (datetime.strftime(datetime.now(), '%Y/%m/%d %H:%M:%S.%f'), body))
-        debug(body = body, debug = 1)
-        data = json.loads(body)
-        if self.AUTO_CLEAR:
-            if shutil.get_terminal_size().lines < self.CURRENT_HEIGHT:
-                if sys.platform == 'win32':
-                    os.system('cls')
+        debug(body = body)
+        data = ''
+        try:
+            data = json.loads(body)
+            if self.AUTO_CLEAR:
+                if shutil.get_terminal_size().lines < self.CURRENT_HEIGHT:
+                    if sys.platform == 'win32':
+                        os.system('cls')
+                    else:
+                        os.system('clear')
+                    self.TERM_SIZE = shutil.get_terminal_size()
+                    self.CURRENT_HEIGHT = 0
                 else:
-                    os.system('clear')
-                self.TERM_SIZE = shutil.get_terminal_size()
-                self.CURRENT_HEIGHT = 0
-            else:
-                self.CURRENT_HEIGHT += 1
-        print(
-            make_colors(str(self.CURRENT_HEIGHT).zfill(2), 'lw', 'bl') + " " + \
-            make_colors(datetime.strftime(datetime.fromisoformat(data.get('timestamp')), '%Y/%m/%d %H:%M:%S:%f'), 'lc') + " [" + \
-            make_colors(*self.set_color(data.get('severity'))) + "] " + \
-            make_colors(data.get('facility'), 'lm') + " " + \
-            make_colors(data.get('ip'), 'ly') + " " + \
-            make_colors(data.get('hostname'), 'lg') + " " + \
-            make_colors(data.get('appname'), 'b', 'y') + " " + \
-            make_colors(data.get('message'), 'lc')
-        )
+                    self.CURRENT_HEIGHT += 1
+            print(
+                make_colors(str(self.CURRENT_HEIGHT).zfill(2), 'lw', 'bl') + " " + \
+                make_colors(datetime.strftime(datetime.fromtimestamp(data.get('created')), '%Y/%m/%d %H:%M:%S:%f'), 'lc') + " [" + \
+                make_colors(*self.set_color(data.get('levelname'))) + "][" + \
+                make_colors(str(data.get('levelno')), 'lw', 'bl') + "] " + \
+                make_colors(data.get('env'), 'lm') + " " + \
+                make_colors(data.get('source'), 'ly') + " " + \
+                make_colors(data.get('host'), 'lg') + " " + \
+                make_colors(data.get('name'), 'b', 'y') + " " + \
+                make_colors(data.get('message'), 'lc')
+            )
+        except:
+            try:
+                data = body.decode('utf-8')
+                data = re.sub("\r\n\r\n", "", data)
+                data = re.sub("\r\n|\n", " - ", data)
+                print(data)
+            except:
+                try:
+                    data = re.sub("\r\n|\n", " - ", body)
+                    print(data)
+                except:
+                    data = 'DATA ERROR'
+                    print(make_colors(data, 'lw', 'r'))
         ch.basic_ack(delivery_tag = met.delivery_tag)
 
     @classmethod
@@ -112,7 +129,7 @@ class Fanout(object):
     @classmethod
     def usage(self):
         parser = argparse.ArgumentParser('fanout')
-        parser.add_argument('EXCHANGE')
+        parser.add_argument('EXCHANGE', default = 'django')
         parser.add_argument('-H', '--host', help = 'Rabbitmmq Server Host/IP', default = '192.168.0.9')
         parser.add_argument('-P', '--port', help = 'Rabbitmmq Server Port, default: 5672', type = int, default = 5672)
         parser.add_argument('-u', '--username', help = 'Rabbitmq admin/user name', default = 'root')
@@ -138,3 +155,4 @@ class Fanout(object):
 
 if __name__ == '__main__':
     Fanout.usage()
+
