@@ -48,7 +48,7 @@ class Fanout(object):
     @classmethod
     def call_back(self, ch, met, prop, body):
         #print("%s [x] Received message: %s" % (datetime.strftime(datetime.now(), '%Y/%m/%d %H:%M:%S.%f'), body))
-        debug(body = body)
+        debug(body = body, debug = 1)
         data = ''
         try:
             data = json.loads(body)
@@ -62,17 +62,17 @@ class Fanout(object):
                     self.CURRENT_HEIGHT = 0
                 else:
                     self.CURRENT_HEIGHT += 1
-            print(
-                make_colors(str(self.CURRENT_HEIGHT).zfill(2), 'lw', 'bl') + " " + \
-                make_colors(datetime.strftime(datetime.fromtimestamp(data.get('created')), '%Y/%m/%d %H:%M:%S:%f'), 'lc') + " [" + \
-                make_colors(*self.set_color(data.get('levelname'))) + "][" + \
-                make_colors(str(data.get('levelno')), 'lw', 'bl') + "] " + \
-                make_colors(data.get('env'), 'lm') + " " + \
-                make_colors(data.get('source'), 'ly') + " " + \
-                make_colors(data.get('host'), 'lg') + " " + \
-                make_colors(data.get('name'), 'b', 'y') + " " + \
-                make_colors(data.get('message'), 'lc')
-            )
+            #print(
+                #make_colors(str(self.CURRENT_HEIGHT).zfill(2), 'lw', 'bl') + " " + \
+                #make_colors(datetime.strftime(datetime.fromtimestamp(data.get('created')), '%Y/%m/%d %H:%M:%S:%f'), 'lc') + " [" + \
+                #make_colors(*self.set_color(data.get('levelname'))) + "][" + \
+                #make_colors(str(data.get('levelno')), 'lw', 'bl') + "] " + \
+                #make_colors(data.get('env'), 'lm') + " " + \
+                #make_colors(data.get('source'), 'ly') + " " + \
+                #make_colors(data.get('host'), 'lg') + " " + \
+                #make_colors(data.get('name'), 'b', 'y') + " " + \
+                #make_colors(data.get('message'), 'lc')
+            #)
         except:
             try:
                 data = body.decode('utf-8')
