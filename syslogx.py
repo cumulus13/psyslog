@@ -37,6 +37,9 @@ LEVEL = {
 def syslog(message, level=LEVEL['notice'], facility=FACILITY['daemon'],
 	host='localhost', port=514):
 
+	level = int(level)
+	facility = int(facility)
+	port = int(port)
 	"""
 	Send syslog UDP packet to given host and port.
 	"""
@@ -48,3 +51,5 @@ def syslog(message, level=LEVEL['notice'], facility=FACILITY['daemon'],
 	sock.sendto(data, (host, port))
 	sock.close()
 
+if __name__ == '__main__':
+	syslog(*sys.argv[1:])

@@ -63,7 +63,7 @@ class Fanout(object):
         try:
             data = json.loads(body)
             #debug(body = body, debug = 1)
-            jsoncolor.jprint(data)
+            #jsoncolor.jprint(data)
             print("-" * self.TERM_SIZE.columns)
             if self.AUTO_CLEAR:
                 if shutil.get_terminal_size().lines < self.CURRENT_HEIGHT:
@@ -73,31 +73,38 @@ class Fanout(object):
                         os.system('clear')
                     self.TERM_SIZE = shutil.get_terminal_size()
                     self.CURRENT_HEIGHT = 0
-                else:
-                    self.CURRENT_HEIGHT += 1
+            else:
+                self.CURRENT_HEIGHT += 1
             print(
                 make_colors(str(self.CURRENT_HEIGHT).zfill(2), 'lw', 'bl') + " " + \
                 #make_colors(datetime.strftime(datetime.fromtimestamp(data.get('created')), '%Y/%m/%d %H:%M:%S:%f'), 'lc') + " [" + \
                 make_colors(data.get('timestamp'), 'lc') + " [" + \
                 make_colors(*self.set_color(data.get('levelname'))) + "][" + \
-                make_colors(str(data.get('levelno')), 'lw', 'bl') + "] " + \
+                make_colors(str(data.get('pid')), 'lw', 'bl') + "] [" + \
+                make_colors(str(data.get('tid')), 'lw', 'c') + "] " + \
                 make_colors(data.get('env'), 'lm') + " " + \
                 make_colors(data.get('filename'), 'ly') + " " + \
-                make_colors(data.get('host'), 'lg') + " " + \
-                make_colors(data.get('name'), 'b', 'y') + " " + \
+                #make_colors(data.get('host'), 'lg') + " " + \
+                #make_colors(data.get('name'), 'b', 'y') + " " + \
                 make_colors(data.get('message'), 'lc')
             )
-        except:
+        except Exception as e:
             try:
+                print("=" * self.TERM_SIZE.columns)
+                print(str(e), 'lw', 'r')
                 data = body.decode('utf-8')
                 data = re.sub("\r\n\r\n", "", data)
                 data = re.sub("\r\n|\n", " - ", data)
                 print(data)
-            except:
+            except Exception as f:
+                print("+" * self.TERM_SIZE.columns)
+                print(str(f), 'lw', 'bl')
                 try:
                     data = re.sub("\r\n|\n", " - ", body)
                     print(data)
-                except:
+                except Exception as g:
+                    print("$" * self.TERM_SIZE.columns)
+                    print(str(g), 'lw', 'm')
                     data = 'DATA ERROR'
                     print(make_colors(data, 'lw', 'r'))
         ch.basic_ack(delivery_tag = met.delivery_tag)
@@ -111,7 +118,13 @@ class Fanout(object):
         #parameters = pika.URLParameters('amqp://guest:guest@127.0.0.1:5672/%2F')
         parameters = pika.URLParameters('amqp://{}:{}@{}:{}/%2F'.format(username, password, hostname, port))
 
-        conn = pika.BlockingConnection(parameters)
+        while 1:
+            try:
+                conn = pika.BlockingConnection(parameters)
+                break
+            except:
+                print(traceback.format_exc())
+                sys.stdout.write("#")
         channel = conn.channel()
 
         #create a queue to send messages
@@ -122,6 +135,7 @@ class Fanout(object):
                 break
             except Exception as e:
                 print(traceback.format_exc())
+                sys.stdout.write(".")
 
         result = channel.queue_declare(queue='', exclusive=True)
         queue_name = result.method.queue
@@ -130,13 +144,18 @@ class Fanout(object):
 
     @classmethod
     def main(self, exchange_name, hostname = '127.0.0.1', port = 5672, username = 'guest', password = 'guest'):
-        channel, queue_name,conn = self.connection(exchange_name, hostname, port, username, password)
-        channel.basic_consume(queue = queue_name, on_message_callback = self.call_back, consumer_tag='all', auto_ack = False)
-        #channel.basic_recover(requeue = True)
-        try:
-            channel.start_consuming()
-        except KeyboardInterrupt:
-            print("exit ...")
+        while 1:
+            try:
+                channel, queue_name,conn = self.connection(exchange_name, hostname, port, username, password)
+                channel.basic_consume(queue = queue_name, on_message_callback = self.call_back, consumer_tag='all', auto_ack = False)
+                #channel.basic_recover(requeue = True)
+                channel.start_consuming()
+                break
+            except KeyboardInterrupt:
+                print("exit ...")
+            except Exception as e:
+                print(make_colors(str(e), 'lw', 'r'))
+
 
         conn.close()
 
@@ -152,8 +171,8 @@ class Fanout(object):
         parser.add_argument('EXCHANGE', default = 'django')
         parser.add_argument('-H', '--host', help = 'Rabbitmmq Server Host/IP, default: 127.0.0.1', default = '127.0.0.1')
         parser.add_argument('-P', '--port', help = 'Rabbitmmq Server Port, default: 5672', type = int, default = 5672)
-        parser.add_argument('-u', '--username', help = 'Rabbitmq admin/user name, default: guest', default = 'guest')
-        parser.add_argument('-p', '--password', help = 'Rabbitmq password admin/user, default: guest', default = 'guest')
+        parser.add_argument('-u', '--username', help = 'Rabbitmq admin/user name, default: guest', default = 'syslog')
+        parser.add_argument('-p', '--password', help = 'Rabbitmq password admin/user, default: guest', default = 'DTPdev@2022@')
         parser.add_argument('-a', '--auto-clear', help = 'Auto clear display if full', action = 'store_true')
         parser.add_argument('-t', '--pub', help = 'Test pub message', action = 'store')
 
