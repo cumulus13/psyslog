@@ -171,8 +171,8 @@ class Fanout(object):
         parser.add_argument('EXCHANGE', default = 'django')
         parser.add_argument('-H', '--host', help = 'Rabbitmmq Server Host/IP, default: 127.0.0.1', default = '127.0.0.1')
         parser.add_argument('-P', '--port', help = 'Rabbitmmq Server Port, default: 5672', type = int, default = 5672)
-        parser.add_argument('-u', '--username', help = 'Rabbitmq admin/user name, default: guest', default = 'syslog')
-        parser.add_argument('-p', '--password', help = 'Rabbitmq password admin/user, default: guest', default = 'DTPdev@2022@')
+        parser.add_argument('-u', '--username', help = 'Rabbitmq admin/user name, default: guest', default = 'guest')
+        parser.add_argument('-p', '--password', help = 'Rabbitmq password admin/user, default: guest', default = 'guest')
         parser.add_argument('-a', '--auto-clear', help = 'Auto clear display if full', action = 'store_true')
         parser.add_argument('-t', '--pub', help = 'Test pub message', action = 'store')
 
@@ -189,7 +189,8 @@ class Fanout(object):
             if args.auto_clear:
                 self.AUTO_CLEAR = True
             if args.pub:
-                self.pub(args.pub, args.EXCHANGE, args.host, args.port, args.username, args.password)
+                print('args.message =', args.message)
+                self.pub((args.pub or args.message), args.EXCHANGE, args.host, args.port, args.username, args.password)
             else:
                 self.main(args.EXCHANGE, args.host, args.port, args.username, args.password)
 

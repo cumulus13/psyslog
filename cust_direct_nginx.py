@@ -2,8 +2,14 @@ import pika
 from datetime import datetime
 import os
 import logging
+import sys
 
 print("PID:", os.getpid())
+
+if len(sys.argv) == 1:
+	sys.argv += ['', '']
+elif len(sys.argv) == 2:
+	sys.argv += ['']
 
 #def call_back(ch, met, prop, body):
     #print("%s [x] Received message: %s" % (datetime.strftime(datetime.now(), '%Y/%m/%d %H:%M:%S.%f'), body))
@@ -50,15 +56,18 @@ print("PID:", os.getpid())
 #connection.close()
 
 # RabbitMQ connection parameters
-RABBITMQ_HOST = '192.168.0.9'
+RABBITMQ_HOST = '127.0.0.1'
 RABBITMQ_PORT = 5672
 RABBITMQ_VHOST = '/'
-RABBITMQ_USER = 'root'
-RABBITMQ_PASSWORD = 'Xxxnuxer13'
+RABBITMQ_USER = 'guest'
+RABBITMQ_PASSWORD = 'guest'
 
 # Queue name and exchange name
-QUEUE_NAME = 'logs'
-EXCHANGE_NAME = 'nginx'
+QUEUE_NAME = 'nginx'
+EXCHANGE_NAME = (sys.argv[1] or 'nginx')
+
+print("QUEUE_NAME    =", QUEUE_NAME)
+print("EXCHANGE_NAME =", EXCHANGE_NAME)
 
 # Establishing connection to RabbitMQ
 credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
@@ -85,7 +94,9 @@ except pika.exceptions.ChannelClosedByBroker as e:
         channel.queue_declare(queue=QUEUE_NAME, durable = True)
 
 # Bind queue to exchange
-channel.queue_bind(queue=QUEUE_NAME, exchange=EXCHANGE_NAME, routing_key='')
+routing_key=(sys.argv[2] or 'nginx')
+print("ROUTING_KEY =", routing_key)
+channel.queue_bind(queue=QUEUE_NAME, exchange=EXCHANGE_NAME, routing_key='nginx')
 
 # Consumer
 def receive_messages():
@@ -97,8 +108,12 @@ def receive_messages():
         except pika.exceptions.ConnectionClosed as e:
             print(f"Connection closed: {e}")
             break
-
-receive_messages()
-
+try:
+	receive_messages()
+except KeyboardInterrupt:
+	print("connection terminated !")
+	sys.exit(0)
+	
 channel.close()
 connection.close()
+

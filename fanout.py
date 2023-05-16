@@ -47,7 +47,7 @@ class Fanout(object):
     @classmethod
     def call_back(self, ch, met, prop, body):
         #print("%s [x] Received message: %s" % (datetime.strftime(datetime.now(), '%Y/%m/%d %H:%M:%S.%f'), body))
-        debug(body = body, debug = 1)
+        debug(body = body)
         data = json.loads(body)
         if self.AUTO_CLEAR:
             if shutil.get_terminal_size().lines < self.CURRENT_HEIGHT:
@@ -57,8 +57,8 @@ class Fanout(object):
                     os.system('clear')
                 self.TERM_SIZE = shutil.get_terminal_size()
                 self.CURRENT_HEIGHT = 0
-            else:
-                self.CURRENT_HEIGHT += 1
+        else:
+        	self.CURRENT_HEIGHT += 1
         print(
             make_colors(str(self.CURRENT_HEIGHT).zfill(2), 'lw', 'bl') + " " + \
             make_colors(datetime.strftime(datetime.fromisoformat(data.get('timestamp')), '%Y/%m/%d %H:%M:%S:%f'), 'lc') + " [" + \
@@ -72,7 +72,7 @@ class Fanout(object):
         ch.basic_ack(delivery_tag = met.delivery_tag)
 
     @classmethod
-    def connection(self, exchange_name, hostname = '192.168.0.9', port = 5672, username = 'root', password = 'Xxxnuxer13'):
+    def connection(self, exchange_name, hostname = '127.0.0.1', port = 5672, username = 'guest', password = 'guest'):
         #establish connection to RabbitMQ
         #credentials = pika.PlainCredentials('root', 'Xxxnuxer')
         # parameters = pika.ConnectionParameters(host='192.168.0.9', port = 5672, credentials=credentials)
@@ -84,7 +84,7 @@ class Fanout(object):
 
         #create a queue to send messages
         #channel.queue_declare(queue='syslog', durable=True)
-        channel.exchange_declare(exchange = exchange_name, exchange_type='fanout', durable=True, auto_delete=False)
+        channel.exchange_declare(exchange = exchange_name, exchange_type='fanout', durable=True, auto_delete=True)
 
         result = channel.queue_declare(queue='', exclusive=True)
         queue_name = result.method.queue
@@ -92,7 +92,7 @@ class Fanout(object):
         return channel, queue_name, conn
 
     @classmethod
-    def main(self, exchange_name, hostname = '192.168.0.9', port = 5672, username = 'root', password = 'Xxxnuxer13'):
+    def main(self, exchange_name, hostname = '127.0.0.1', port = 5672, username = 'guest', password = 'guest'):
         channel, queue_name,conn = self.connection(exchange_name, hostname, port, username, password)
         channel.basic_consume(queue = queue_name, on_message_callback = self.call_back, consumer_tag='all', auto_ack = False)
         #channel.basic_recover(requeue = True)
@@ -104,7 +104,7 @@ class Fanout(object):
         conn.close()
 
     @classmethod
-    def pub(self, message, exchange_name, hostname = '192.168.0.9', port = 5672, username = 'root', password = 'Xxxnuxer13'):
+    def pub(self, message, exchange_name, hostname = '127.0.0.1', port = 5672, username = 'guest', password = 'guest'):
         channel, _,conn = self.connection(exchange_name, hostname, port, username, password)
         channel.basic_publish(exchange_name, '', message)
         conn.close
@@ -113,10 +113,10 @@ class Fanout(object):
     def usage(self):
         parser = argparse.ArgumentParser('fanout')
         parser.add_argument('EXCHANGE')
-        parser.add_argument('-H', '--host', help = 'Rabbitmmq Server Host/IP', default = '192.168.0.9')
+        parser.add_argument('-H', '--host', help = 'Rabbitmmq Server Host/IP', default = '127.0.0.1')
         parser.add_argument('-P', '--port', help = 'Rabbitmmq Server Port, default: 5672', type = int, default = 5672)
-        parser.add_argument('-u', '--username', help = 'Rabbitmq admin/user name', default = 'root')
-        parser.add_argument('-p', '--password', help = 'Rabbitmq password admin/user', default = 'Xxxnuxer13')
+        parser.add_argument('-u', '--username', help = 'Rabbitmq admin/user name', default = 'guest')
+        parser.add_argument('-p', '--password', help = 'Rabbitmq password admin/user', default = 'guest')
         parser.add_argument('-a', '--auto-clear', help = 'Auto clear display if full', action = 'store_true')
 
         cons = parser.add_subparsers()

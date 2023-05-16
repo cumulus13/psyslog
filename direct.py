@@ -112,10 +112,10 @@ class Direct(object):
     def usage(self):
         parser = argparse.ArgumentParser('direct')
         parser.add_argument('EXCHANGE')
-        parser.add_argument('-H', '--host', help = 'Rabbitmmq Server Host/IP', default = '192.168.0.9')
+        parser.add_argument('-H', '--host', help = 'Rabbitmmq Server Host/IP', default = '127.0.0.1')
         parser.add_argument('-P', '--port', help = 'Rabbitmmq Server Port, default: 5672', type = int, default = 5672)
-        parser.add_argument('-u', '--username', help = 'Rabbitmq admin/user name', default = 'root')
-        parser.add_argument('-p', '--password', help = 'Rabbitmq password admin/user', default = 'Xxxnuxer13')
+        parser.add_argument('-u', '--username', help = 'Rabbitmq admin/user name', default = 'guest')
+        parser.add_argument('-p', '--password', help = 'Rabbitmq password admin/user', default = 'guest')
         parser.add_argument('-q', '--queue', help = 'Rabbitmq Queue name, default: "logs"', default = 'logs')
         
         cons = parser.add_subparsers()
