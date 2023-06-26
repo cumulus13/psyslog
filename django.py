@@ -144,6 +144,9 @@ class Fanout(object):
 
     @classmethod
     def main(self, exchange_name, hostname = '127.0.0.1', port = 5672, username = 'guest', password = 'guest'):
+        hostname = self.CONFIG.get_config('server', 'host') or hostname or '127.0.0.1'
+        port = self.CONFIG.get_config('server', 'port') or port or 5672
+
         while 1:
             try:
                 channel, queue_name,conn = self.connection(exchange_name, hostname, port, username, password)

@@ -9,3 +9,4 @@
 *.hgtags
 psyslog.log 
 traceback.log
+*.swp
