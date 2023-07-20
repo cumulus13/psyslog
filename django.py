@@ -116,6 +116,11 @@ class Fanout(object):
         #credentials = pika.PlainCredentials('guest', 'Xxxnuxer')
         # parameters = pika.ConnectionParameters(host='127.0.0.1', port = 5672, credentials=credentials)
         #parameters = pika.URLParameters('amqp://guest:guest@127.0.0.1:5672/%2F')
+        debug(exchange_name = exchange_name, debug = 1)
+        debug(username = username, debug = 1)
+        debug(password = password, debug = 1)
+        debug(hostname = hostname, debug = 1)
+        debug(port = port, debug = 1)
         parameters = pika.URLParameters('amqp://{}:{}@{}:{}/%2F'.format(username, password, hostname, port))
 
         while 1:
@@ -143,10 +148,16 @@ class Fanout(object):
         return channel, queue_name, conn
 
     @classmethod
-    def main(self, exchange_name, hostname = '127.0.0.1', port = 5672, username = 'guest', password = 'guest'):
+    def main(self, exchange_name, hostname = '127.0.0.1', port = 5672, username = None, password = None):
         hostname = self.CONFIG.get_config('server', 'host') or hostname or '127.0.0.1'
         port = self.CONFIG.get_config('server', 'port') or port or 5672
-
+        
+        username = username or self.CONFIG.get_config('auth', 'username') or 'guest'
+        password = password or self.CONFIG.get_config('auth', 'password') or 'guest'
+        
+        #debug(username = username, debug = 1)
+        #debug(password = password, debug = 1)
+        
         while 1:
             try:
                 channel, queue_name,conn = self.connection(exchange_name, hostname, port, username, password)
@@ -172,10 +183,10 @@ class Fanout(object):
     def usage(self):
         parser = argparse.ArgumentParser('fanout')
         parser.add_argument('EXCHANGE', default = 'django')
-        parser.add_argument('-H', '--host', help = 'Rabbitmmq Server Host/IP, default: 127.0.0.1', default = '127.0.0.1')
+        parser.add_argument('-H', '--host', help = 'Rabbitmmq Server Host/IP, default: 127.0.0.1')
         parser.add_argument('-P', '--port', help = 'Rabbitmmq Server Port, default: 5672', type = int, default = 5672)
-        parser.add_argument('-u', '--username', help = 'Rabbitmq admin/user name, default: guest', default = 'guest')
-        parser.add_argument('-p', '--password', help = 'Rabbitmq password admin/user, default: guest', default = 'guest')
+        parser.add_argument('-u', '--username', help = 'Rabbitmq admin/user name, default: guest')
+        parser.add_argument('-p', '--password', help = 'Rabbitmq password admin/user, default: guest')
         parser.add_argument('-a', '--auto-clear', help = 'Auto clear display if full', action = 'store_true')
         parser.add_argument('-t', '--pub', help = 'Test pub message', action = 'store')
 
