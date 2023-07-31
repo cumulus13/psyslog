@@ -15,6 +15,7 @@ from pydebugger.debug import debug
 import tenacity
 import jsoncolor
 import traceback
+import ast
 
 print("PID:", os.getpid())
 
@@ -58,23 +59,65 @@ class Fanout(object):
     @classmethod
     def call_back(self, ch, met, prop, body):
         #print("%s [x] Received message: %s" % (datetime.strftime(datetime.now(), '%Y/%m/%d %H:%M:%S.%f'), body))
+        if hasattr(body, 'decode'):
+            body = body.decode('utf-8')
         debug(body = body)
         data = ''
+        #try:
         try:
             data = json.loads(body)
-            #debug(body = body, debug = 1)
-            #jsoncolor.jprint(data)
-            print("-" * self.TERM_SIZE.columns)
-            if self.AUTO_CLEAR:
-                if shutil.get_terminal_size().lines < self.CURRENT_HEIGHT:
-                    if sys.platform == 'win32':
-                        os.system('cls')
-                    else:
-                        os.system('clear')
-                    self.TERM_SIZE = shutil.get_terminal_size()
-                    self.CURRENT_HEIGHT = 0
+            if isinstance(data, str):
+                data = json.loads(data)            
+        except:
+            try:
+                data = ast.literal_eval(body)
+                if isinstance(data, str):
+                    data = ast.literal_eval(data)                
+            #except Exception as e:
+            except:
+                try:
+                    print("=" * self.TERM_SIZE.columns)
+                    #print(str(e), 'lw', 'r')
+                    #print("ERROR 1 =", traceback.format_exc())
+                    data = body.decode('utf-8')
+                    data = re.sub("\r\n\r\n", "", data)
+                    data = re.sub("\r\n|\n", " - ", data)
+                    print(data)
+                #except Exception as f:
+                except:
+                    print("+" * self.TERM_SIZE.columns)
+                    #print(str(f), 'lw', 'bl')
+                    #print("ERROR 1 =", traceback.format_exc())
+                    try:
+                        data = re.sub("\r\n|\n", " - ", body)
+                        print(data)
+                    #except Exception as g:
+                    except:
+                        print("ERROR =", traceback.format_exc())
+                        print("$" * self.TERM_SIZE.columns)
+                        #print(str(g), 'lw', 'm')
+                        data = 'DATA ERROR'
+                        print(make_colors(data, 'lw', 'r'))
+        #data = json.loads(body)
+        debug(body = body)
+        #jsoncolor.jprint(data)
+        print("-" * self.TERM_SIZE.columns)
+        if self.AUTO_CLEAR:
+            if shutil.get_terminal_size().lines < self.CURRENT_HEIGHT:
+                if sys.platform == 'win32':
+                    os.system('cls')
+                else:
+                    os.system('clear')
+                self.TERM_SIZE = shutil.get_terminal_size()
+                self.CURRENT_HEIGHT = 0
+        else:
+            self.CURRENT_HEIGHT += 1
+            
+        if isinstance(data, dict):
+            if os.getenv('SHOW_LONG_MESSAGE') == '1' or self.CONFIG.get_config('message', 'long') == 1 or self.CONFIG.get_config('message', 'long') == True:
+                longmessage = make_colors(data.get('logmessage').split("\n", 1)[1], 'lg') + " --- "
             else:
-                self.CURRENT_HEIGHT += 1
+                longmessage = ''
             print(
                 make_colors(str(self.CURRENT_HEIGHT).zfill(2), 'lw', 'bl') + " " + \
                 #make_colors(datetime.strftime(datetime.fromtimestamp(data.get('created')), '%Y/%m/%d %H:%M:%S:%f'), 'lc') + " [" + \
@@ -84,29 +127,15 @@ class Fanout(object):
                 make_colors(str(data.get('tid')), 'lw', 'c') + "] " + \
                 make_colors(data.get('env'), 'lm') + " " + \
                 make_colors(data.get('filename'), 'ly') + " " + \
+                make_colors(data.get('message'), 'lc') + \
+                longmessage             
                 #make_colors(data.get('host'), 'lg') + " " + \
                 #make_colors(data.get('name'), 'b', 'y') + " " + \
-                make_colors(data.get('message'), 'lc')
+                
             )
-        except Exception as e:
-            try:
-                print("=" * self.TERM_SIZE.columns)
-                print(str(e), 'lw', 'r')
-                data = body.decode('utf-8')
-                data = re.sub("\r\n\r\n", "", data)
-                data = re.sub("\r\n|\n", " - ", data)
-                print(data)
-            except Exception as f:
-                print("+" * self.TERM_SIZE.columns)
-                print(str(f), 'lw', 'bl')
-                try:
-                    data = re.sub("\r\n|\n", " - ", body)
-                    print(data)
-                except Exception as g:
-                    print("$" * self.TERM_SIZE.columns)
-                    print(str(g), 'lw', 'm')
-                    data = 'DATA ERROR'
-                    print(make_colors(data, 'lw', 'r'))
+        else:
+            print(make_colors(data, 'lw', 'r'))
+        
         ch.basic_ack(delivery_tag = met.delivery_tag)
 
     @classmethod
@@ -116,11 +145,11 @@ class Fanout(object):
         #credentials = pika.PlainCredentials('guest', 'Xxxnuxer')
         # parameters = pika.ConnectionParameters(host='127.0.0.1', port = 5672, credentials=credentials)
         #parameters = pika.URLParameters('amqp://guest:guest@127.0.0.1:5672/%2F')
-        debug(exchange_name = exchange_name, debug = 1)
-        debug(username = username, debug = 1)
-        debug(password = password, debug = 1)
-        debug(hostname = hostname, debug = 1)
-        debug(port = port, debug = 1)
+        debug(exchange_name = exchange_name)
+        debug(username = username)
+        debug(password = password)
+        debug(hostname = hostname)
+        debug(port = port)
         parameters = pika.URLParameters('amqp://{}:{}@{}:{}/%2F'.format(username, password, hostname, port))
 
         while 1:
@@ -155,8 +184,8 @@ class Fanout(object):
         username = username or self.CONFIG.get_config('auth', 'username') or 'guest'
         password = password or self.CONFIG.get_config('auth', 'password') or 'guest'
         
-        #debug(username = username, debug = 1)
-        #debug(password = password, debug = 1)
+        #debug(username = username)
+        #debug(password = password)
         
         while 1:
             try:
