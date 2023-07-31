@@ -10,3 +10,4 @@
 psyslog.log 
 traceback.log
 *.swp
+*.orig
