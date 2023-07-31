@@ -62,7 +62,7 @@ class Fanout(object):
         data = ''
         try:
             data = json.loads(body)
-            #debug(body = body, debug = 1)
+            #debug(body = body)
             #jsoncolor.jprint(data)
             print("-" * self.TERM_SIZE.columns)
             if self.AUTO_CLEAR:
