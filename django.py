@@ -135,6 +135,7 @@ class Fanout(object):
             )
         else:
             print(make_colors(data, 'lw', 'r'))
+            print(make_colors(body, 'lw', 'bl'))
         
         ch.basic_ack(delivery_tag = met.delivery_tag)
 

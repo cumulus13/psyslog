@@ -1,0 +1,6 @@
+pika
+pydebugger
+configset
+tenacity
+git+https://github.com/cumulus13/jsoncolor
+bitmath
