@@ -1,4 +1,5 @@
 pika
+git+https://github.com/cumulus13/cmdw
 pydebugger
 configset
 tenacity
