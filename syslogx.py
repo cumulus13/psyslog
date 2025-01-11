@@ -29,17 +29,34 @@ FACILITY = {
 	'local4': 20, 'local5': 21, 'local6': 22, 'local7': 23,
 }
 
-LEVEL = {
-	'emerg': 0, 'alert':1, 'crit': 2, 'err': 3,
-	'warning': 4, 'notice': 5, 'info': 6, 'debug': 7
+FACILITY_REVERSED = {
+    0: 'kern', 1: 'user', 2: 'mail', 3: 'daemon',
+    4: 'auth', 5: 'syslog', 6: 'lpr', 7: 'news',
+    8: 'uucp', 9: 'cron', 10: 'authpriv', 11: 'ftp',
+    16: 'local0', 17: 'local1', 18: 'local2', 19: 'local3',
+    20: 'local4', 21: 'local5', 22: 'local6', 23: 'local7',
 }
 
-def syslog(message, level=LEVEL['notice'], facility=FACILITY['daemon'],
-	host='localhost', port=514):
 
-	level = int(level)
-	facility = int(facility)
-	port = int(port)
+LEVEL = {
+	'emerg': 0, 'emergency': 0, 'alert':1, 'crit': 2, 'critical': 2, 'err': 3, 'error': 3,
+	'warning': 4, 'warn': 4, 'notice': 5, 'info': 6, 'debug': 7
+}
+
+LEVEL_REVERSED = {
+    0: 'emerg',
+    1: 'alert',
+    2: 'criti',
+    3: 'error',
+    4: 'warni',
+    5: 'notic',
+    6: 'info ',
+    7: 'debug',
+}
+
+
+def syslog(message, level=LEVEL['notice'], facility=FACILITY['daemon'], host='localhost', port=514):
+
 	"""
 	Send syslog UDP packet to given host and port.
 	"""
