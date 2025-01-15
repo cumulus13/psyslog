@@ -6,6 +6,8 @@
 from __future__ import print_function
 import click
 import sys
+from ctraceback import CTraceback
+sys.excepthook = CTraceback
 import os
 import traceback
 import socket
@@ -23,6 +25,33 @@ from configset import configset
 from pydebugger.debug import debug
 import bitmath
 import signal
+from rich.theme import Theme
+from rich.console import Console
+
+severity_theme1 = Theme({
+    "emergency": "#FFFFFF on #ff00ff",
+    "emerg": "#FFFFFF on #ff00ff",
+    "alert": "white on #005500",
+    "ale": "white on #005500",
+    "aler": "white on #005500",
+    'critical': "white on #0000FF",
+    'criti': "white on #0000FF",
+    'crit': "white on #0000FF",
+    "error": "white on red",
+    "err": "white on red",
+    "warning": "black on #FFFF00",
+    "warni": "black on #FFFF00",
+    "warn": "black on #FFFF00",
+    'notice': "black on #55FFFF",
+    'notic': "black on #55FFFF",
+    'noti': "black on #55FFFF",
+    "info": "bold #AAFF00",
+    "debug": "black on #FFAA00",
+    "deb": "black on #FFAA00",
+    "unknown": "white on #FF00FF"
+})
+
+console = Console(theme=severity_theme1)
 
 PID = os.getpid()
 lineNumber = 1
@@ -128,6 +157,50 @@ class Psyslog(object):
             return self.CONFIG.get_config('LEVEL_DEBUG', 'fore', value='yellow'), self.CONFIG.get_config('LEVEL_DEBUG', 'back', value='black')
         else:
             return self.CONFIG.get_config('LEVEL_UNKNOWN', 'fore', value='red'), self.CONFIG.get_config('LEVEL_UNKNOWN', 'back', value='white')
+        
+    def _coloring(self, level, facility, text, dtime):
+        severity_theme1 = Theme({
+            "emergency": "white on #ff00ff",
+            "emerg": "white on #ff00ff",
+            "alert": "white on #005500",
+            'critical': "white on #0000FF",
+            "error": "white on red",
+            "warning": "black on #FFFF00",
+            'notice': "black on #55FFFF",
+            "info": "bold #AAFF00",
+            "debug": "black on #FFAA00" 
+        })
+
+        severity_theme2 = Theme({
+            "0": "white on #ff00ff",
+            "1": "white on #005500",
+            '2': "white on #0000FF",
+            "3": "white on red",
+            "4": "black on #FFFF00",
+            '5': "black on #55FFFF",
+            "6": "bold #AAFF00",
+            "7": "black on #FFAA00" 
+        })
+
+        valid_severity = ['emergency', 'emerg', 'emer', 'alert', 'aler', 'critical', 'critic', 'criti', 'error', 'err', 'warning', 'warn', 'notice', 'noti', 'info', 'debug', 'deb']
+
+        # SEVERITY_STRING = f"\[[{severity_theme2.get(level) if str(level).isdigit() else severity_theme1.get(level)}]{syslog.LEVEL_REVERSED.get(level) if str(level).isdigit() else level.lower() if level.lower() in valid_severity else 'unknown'}][/]" if self.CONFIG.get_config('GENERAL', 'show_severity_string') else ''
+        SEVERITY_STRING = f"\[[{syslog.FACILITY_REVERSED.get(level) if str(level).isdigit() else syslog.LEVEL.get(level) if level.lower() in valid_severity else 'unknown'}]{syslog.LEVEL_REVERSED.get(level) if str(level).isdigit() else level.lower() if level.lower() in valid_severity else 'unknown'}][/]" if self.CONFIG.get_config('GENERAL', 'show_severity_string') else ''
+
+        debug(SEVERITY_STRING = SEVERITY_STRING)
+
+        FACILITY_STRING = f"\[[{self.CONFIG.get_config('FACILITY', 'color') if self.CONFIG.get_config('FACILITY', 'color') else 'bold white on green'}]{syslog.FACILITY_REVERSED.get(facility) if str(facility).isdigit() and syslog.FACILITY_REVERSED.get(facility) else facility}[/]]" if self.CONFIG.get_config('GENERAL', 'show_priority') in [1, True] else ''
+
+        debug(text = text)
+        debug(level = level)
+        debug(level_reversed_get_level = syslog.LEVEL_REVERSED.get(level) if str(level).isdigit() else syslog.LEVEL.get(level))
+        # debug(check_valid_level = str(level).lower() if str(level).lower() in valid_severity else 'white on #FF00FF')
+        debug(check_color_text = syslog.LEVEL_REVERSED.get(level) if str(level).isdigit() else syslog.LEVEL.get(level) if str(level).lower() in valid_severity else 'unknown')
+
+        TEXT = f"[{syslog.LEVEL_REVERSED.get(level) if str(level).isdigit() else syslog.LEVEL_REVERSED.get(syslog.LEVEL.get(level)) if level.lower() in valid_severity else 'unknown'}]{text}[/]"
+
+        # return f"[bold #55FFFF]{dtime}[/] {SEVERITY_STRING} {FACILITY_STRING} {TEXT}"
+        return f"{SEVERITY_STRING} {FACILITY_STRING} {TEXT}"
 
     def get_facility_color_config(self):
         return self.CONFIG.get_config('FACILITY', 'fore', 'white'), self.CONFIG.get_config('FACILITY', 'back', 'green')
@@ -139,29 +212,34 @@ class Psyslog(object):
             return "[" + text + "]"
         return ''
 
-    def coloring(self, number, text, facility_string='', dtime = ''):
+    def coloring(self, level, text, facility='', dtime = ''):
         '''function coloring
         
         Convert priority number and message then colored
         
         Arguments:
-            number {str} -- number include from syslog receive
+            level {str/int} -- number include from syslog receive
             text {str} -- text string syslog receiver per line/time
         
         Returns:
              str -- message/text with colored
         '''
         if not dtime: dtime = ''
-        if facility_string:
-            facility_fore, facility_back = self.get_facility_color_config()
-            if facility_fore and facility_back:
-                facility_string = make_colors("[", 'white', 'black') + make_colors(facility_string, facility_fore, facility_back) + make_colors("]", 'white', 'black') + " "
-            else:   
-                facility_string = make_colors("[", 'white', 'black') + make_colors(facility_string, 'white', 'magenta') + make_colors("]", 'white', 'black') + " "
-        _, severity = self.convert_priority_to_severity(number)
+        # if facility_string:
+        #     facility_fore, facility_back = self.get_facility_color_config()
+        #     if facility_fore and facility_back:
+        #         facility_string = make_colors("[", 'white', 'black') + make_colors(facility_string, facility_fore, facility_back) + make_colors("]", 'white', 'black') + " "
+        #     else:   
+        #         facility_string = make_colors("[", 'white', 'black') + make_colors(facility_string, 'white', 'magenta') + make_colors("]", 'white', 'black') + " "
+        debug(level = level)
+        if int(level) <= 7:
+            severity = int(level)
+        else:
+            _, severity = self.convert_priority_to_severity(level)
         debug(severity = severity)
         # print(f"Severity: {severity}")
-        if not facility_string: facility_string = ''
+        # if not facility_string: facility_string = ''
+        if not facility: facility = ''
         # print "severity =", severity
         SEVERITY_STRING = ''
         debug(severity = severity)
@@ -169,61 +247,61 @@ class Psyslog(object):
         debug(severity_config_show_string = self.CONFIG.get_config('GENERAL', 'show_severity_string'))
         debug(severity_config_show_string_check = self.CONFIG.get_config('GENERAL', 'show_severity_string') == 1 or self.CONFIG.get_config('GENERAL', 'show_severity_string') == True)
 
-        if str(severity).isdigit() and (self.CONFIG.get_config('GENERAL', 'show_severity_string') == 1 or self.CONFIG.get_config('GENERAL', 'show_severity_string') == True):
-            SEVERITY_STRING = syslog.LEVEL_REVERSED.get(int(severity))
-            debug(SEVERITY_STRING = SEVERITY_STRING)
+        # if str(severity).isdigit() and (self.CONFIG.get_config('GENERAL', 'show_severity_string') == 1 or self.CONFIG.get_config('GENERAL', 'show_severity_string') == True):
+        #     SEVERITY_STRING = syslog.LEVEL_REVERSED.get(int(severity))
+        #     debug(SEVERITY_STRING = SEVERITY_STRING)
         debug(SEVERITY_STRING = SEVERITY_STRING)
-        
-        if int(severity) == 0:
-            fore_0, back_0 = self.get_level_color_config(0)
-            if fore_0 and back_0:
-                return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_0, back_0) + " " + facility_string + make_colors(text, fore_0, back_0)
-            else:
-                return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_0, back_0) + " " + facility_string + make_colors(text, 'white', 'magenta')
-        elif int(severity) == 1:
-            fore_1, back_1 = self.get_level_color_config(1)
-            if fore_1 and back_1:
-                return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_1, back_1) + " " + facility_string + make_colors(text, fore_1, back_1)
-            else:
-                return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_1, back_1) + " " + facility_string + make_colors(text, 'white', 'blue')
-        elif int(severity) == 2:
-            fore_2, back_2 = self.get_level_color_config(2)
-            if fore_2 and back_2:
-                return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_2, back_2) + " " + facility_string + make_colors(text, fore_2, back_2)
-            else:
-                return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_2, back_2) + " " + facility_string + make_colors(text, 'white', 'green')
-        elif int(severity) == 3:
-            fore_3, back_3 = self.get_level_color_config(3)
-            if fore_3 and back_3:
-                return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_3, back_3) + " " + facility_string + make_colors(text, fore_3, back_3)
-            else:
-                return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_3, back_3) + " " + facility_string + make_colors(text, 'white', 'red')
-        elif int(severity) == 4:
-            fore_4, back_4 = self.get_level_color_config(4)
-            if fore_4 and back_4:
-                return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_4, back_4) + " " + facility_string + make_colors(text, fore_4, back_4)
-            else:
-                return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_4, back_4) + " " + facility_string + make_colors(text, 'black', 'yellow')
-        elif int(severity) == 5:
-            fore_5, back_5 = self.get_level_color_config(5)
-            if fore_5 and back_5:
-                return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_5, back_5) + " " + facility_string + make_colors(text, fore_5, back_5)
-            else:
-                return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_5, back_5) + " " + facility_string + make_colors(text, 'white', 'cyan')
-        elif int(severity) == 6:
-            fore_6, back_6 = self.get_level_color_config(6)
-            if fore_6 and back_6:
-                return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_6, back_6) + " " + facility_string + make_colors(text, fore_6, back_6)
-            else:
-                return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_6, back_6) + " " + facility_string + make_colors(text, 'green')
-        elif int(severity) == 7:
-            fore_7, back_7 = self.get_level_color_config(7)
-            if fore_7 and back_7:
-                return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_7, back_7) + " " + facility_string + make_colors(text, fore_7, back_7)
-            else:
-                return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_7, back_7) + " " + facility_string + make_colors(text, 'yellow')
-        else:
-            return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING) + " " + facility_string + make_colors(text, 'red', 'white')
+        return self._coloring(severity, facility, text, dtime)
+        # if int(severity) == 0:
+        #     fore_0, back_0 = self.get_level_color_config(0)
+        #     if fore_0 and back_0:
+        #         return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_0, back_0) + " " + facility_string + make_colors(text, fore_0, back_0)
+        #     else:
+        #         return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_0, back_0) + " " + facility_string + make_colors(text, 'white', 'magenta')
+        # elif int(severity) == 1:
+        #     fore_1, back_1 = self.get_level_color_config(1)
+        #     if fore_1 and back_1:
+        #         return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_1, back_1) + " " + facility_string + make_colors(text, fore_1, back_1)
+        #     else:
+        #         return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_1, back_1) + " " + facility_string + make_colors(text, 'white', 'blue')
+        # elif int(severity) == 2:
+        #     fore_2, back_2 = self.get_level_color_config(2)
+        #     if fore_2 and back_2:
+        #         return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_2, back_2) + " " + facility_string + make_colors(text, fore_2, back_2)
+        #     else:
+        #         return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_2, back_2) + " " + facility_string + make_colors(text, 'white', 'green')
+        # elif int(severity) == 3:
+        #     fore_3, back_3 = self.get_level_color_config(3)
+        #     if fore_3 and back_3:
+        #         return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_3, back_3) + " " + facility_string + make_colors(text, fore_3, back_3)
+        #     else:
+        #         return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_3, back_3) + " " + facility_string + make_colors(text, 'white', 'red')
+        # elif int(severity) == 4:
+        #     fore_4, back_4 = self.get_level_color_config(4)
+        #     if fore_4 and back_4:
+        #         return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_4, back_4) + " " + facility_string + make_colors(text, fore_4, back_4)
+        #     else:
+        #         return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_4, back_4) + " " + facility_string + make_colors(text, 'black', 'yellow')
+        # elif int(severity) == 5:
+        #     fore_5, back_5 = self.get_level_color_config(5)
+        #     if fore_5 and back_5:
+        #         return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_5, back_5) + " " + facility_string + make_colors(text, fore_5, back_5)
+        #     else:
+        #         return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_5, back_5) + " " + facility_string + make_colors(text, 'white', 'cyan')
+        # elif int(severity) == 6:
+        #     fore_6, back_6 = self.get_level_color_config(6)
+        #     if fore_6 and back_6:
+        #         return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_6, back_6) + " " + facility_string + make_colors(text, fore_6, back_6)
+        #     else:
+        #         return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_6, back_6) + " " + facility_string + make_colors(text, 'green')
+        # elif int(severity) == 7:
+        #     fore_7, back_7 = self.get_level_color_config(7)
+        #     if fore_7 and back_7:
+        #         return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_7, back_7) + " " + facility_string + make_colors(text, fore_7, back_7)
+        #     else:
+        #         return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING, fore_7, back_7) + " " + facility_string + make_colors(text, 'yellow')
+        # else:
+        #     return make_colors(dtime, 'lm') + " " + self.coloring_severity_string(SEVERITY_STRING) + " " + facility_string + make_colors(text, 'red', 'white')
 
     def set_config(self, file_config_path='psyslog.ini'):
         if file_config_path:
@@ -371,9 +449,9 @@ class Psyslog(object):
             with open(logfile_name, 'w') as logfile:
                 logfile.write("")
                     
-        
     def set_data(self, data):
-        yield print(data.decode())
+        yield console.print(data.decode())
+        # yield print(data.decode())
         
     def server(self, host='0.0.0.0', port=None):
         debug(host = host)
@@ -440,9 +518,11 @@ class Psyslog(object):
                 client_address = data_client_ip[0]
                 data = re.sub('Original Address=\d{0,3}\.\d{0,3}\.\d{0,3}\.\d{0,3}', '', data)
                 debug(data = data)
-                client_address = make_colors(client_address, 'lc')
+                # client_address = make_colors(client_address, 'lc')
+                client_address = f"[bold #55FFFF]{client_address}[/]"
             else:
-                client_address = make_colors(client_address[0], 'lc')
+                # client_address = make_colors(client_address[0], 'lc')
+                client_address = f"[bold #55FFFF]{client_address[0]}[/]"
             debug(data = data)
             data = re.sub("\S{0,3} \d{0,2} \d{0,2}:\d{0,2}:\d{0,2} \d{0,3}\.\d{0,3}\.\d{0,3}\.\d{0,3} Kiwi_Syslog_Server  ", "", data)
             debug(data = data)
@@ -453,14 +533,15 @@ class Psyslog(object):
                 data = re.sub("\S{0,3} \d{0,2} \d{0,2}:\d{0,2}:\d{0,2} .*? ", '', data)
                 times, hostname = re.findall("(\S{0,3} \d{0,2} \d{0,2}:\d{0,2}:\d{0,2}) (.*?) ", times[0])[0]
                 try:
-                    times = make_colors(self.convert_time2(str(datetime.now().year) + " " + times), 'white', 'black')
+                    times = f"[white on black]{self.convert_time(str(datetime.now().year) + ' ' + times)}[/]"
                 except:
                     try:
-                        times = make_colors(self.convert_time2(str(datetime.now().year) + times), 'white', 'black')
+                        times = f"[white on black]{self.convert_time2(str(datetime.now().year) + ' ' + times)}[/]"
                     except:
-                        times = make_colors(self.convert_time3(str(datetime.now().year) + times), 'white', 'black')
+                        times = f"[white on black]{self.convert_time3(str(datetime.now().year) + ' ' + times)}[/]"
             else:
-                times = make_colors(self.convert_time(int(time.time())), 'white', 'black')
+                # times = make_colors(self.convert_time(int(time.time())), 'white', 'black')
+                times = f"[white on black]{self.convert_time(int(time.time()))}[/]"
             debug(times = times)
             
             debug(data = data)
@@ -495,23 +576,25 @@ class Psyslog(object):
                     message = re.sub(dtime + " ", '', message)
                     #message = dtime + " " + message
             debug(GENERAL_show_priority = self.CONFIG.get_config('GENERAL', 'show_priority'))
-            if self.CONFIG.get_config('GENERAL', 'show_priority') == 1 or self.CONFIG.get_config('GENERAL', 'show_priority') == True:
-                facility_string = syslog.FACILITY_REVERSED.get(int(self.convert_priority_to_severity(number)[0])) or ''
+            # if self.CONFIG.get_config('GENERAL', 'show_priority') == 1 or self.CONFIG.get_config('GENERAL', 'show_priority') == True:
+            #     facility_string = syslog.FACILITY_REVERSED.get(int(self.convert_priority_to_severity(number)[0])) or ''
             debug(facility_string = facility_string)
             debug(number = number)
             if self.CONFIG.get_config('GENERAL', 'show_priority_number'):
-                data = self.coloring(number, data, facility_string, dtime)
+                data = self.coloring(number, data, int(self.convert_priority_to_severity(number)[0]), dtime)
             else:
-                data = self.coloring(number, message, facility_string, dtime)
+                data = self.coloring(number, message, int(self.convert_priority_to_severity(number)[0]), dtime)
             
             #data = self.coloring(number, data)
             #data = self.coloring(number, message)
             debug(data=data)
             laengde = len(data)
             debug(laengde=laengde)
-            newLogString = "%s%s%s %s %s%s [%s]" % (make_colors(self.format_number(lineNumber), 'yellow'), make_colors('@', 'red'), times, client_address, make_colors(app, 'lb'), data, str(pid))
+            # newLogString = "%s%s%s %s %s%s [%s]" % (make_colors(self.format_number(lineNumber), 'yellow'), make_colors('@', 'red'), times, client_address, make_colors(app, 'lb'), data, str(pid))
+            # newLogString = f"[#FFFF00]self.format_number(lineNumber)[/][bold #FF007F]@[/]{times} {client_address} [bold #0055FF]{app}[/] {data} [bold #FFCBB3]{str(pid)}[/]"
             if laengde > 4:
-                newLogString = "%s%s%s %s %s%s [%s]" % (make_colors(self.format_number(lineNumber), 'yellow'), make_colors('@', 'red'), times, client_address, make_colors(app, 'lb'), data, str(pid))
+                # newLogString = "%s%s%s %s %s%s [%s]" % (make_colors(self.format_number(lineNumber), 'yellow'), make_colors('@', 'red'), times, client_address, make_colors(app, 'lb'), data, str(pid))
+                newLogString = f"[#FFFF00]{self.format_number(lineNumber)}[/][bold #FF007F]@[/]{times} {client_address} [bold #0055FF]{app}[/]{data} \[[bold #FFCBB3]{str(pid)}[/]]"
                 if send_queue:
                     newLogString = "%s@%s %s %s%s [%s]" % (self.format_number(lineNumber), times, client_address, app, data, str(pid))
                     self.sent_to_broker(newLogString)
@@ -529,8 +612,7 @@ class Psyslog(object):
             # if lineNumber > 10000000:
             # return newLogString
             # sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            if not newLogString:
-                newLogString = data
+            if not newLogString: newLogString = data
             debug(newLogString = newLogString)
             debug(lineNumber = lineNumber)
             return newLogString, lineNumber
