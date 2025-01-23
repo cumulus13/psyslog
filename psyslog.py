@@ -61,6 +61,8 @@ lineNumber = 1
 
 class Psyslog(object):
     
+    # The above code is defining a Python variable `CONFIG` and assigning it the value returned by the
+    # `configset()` function.
     CONFIG = configset()
     HOST = CONFIG.get_config('SERVER', 'host') or '127.0.0.1'
     PORT = CONFIG.get_config('SERVER', 'port') or 1514
@@ -501,17 +503,12 @@ class Psyslog(object):
         
     def server(self, host='0.0.0.0', port=None, handler = 'socket'):
         debug(handler = handler)
-        if handler == 'socket' or self.CONFIG.get_config('SERVER', 'handle') == 'socket':
-            print("run with socket handler ...")
-            self.socket_handler(host, port)
-        elif handler in ['rabbit', 'rabbitmq'] or self.CONFIG.get_config('SERVER', 'handle') in ['rabbit', 'rabbitmq']:
-            console.print(f"[notice]Run with[/] [error]RabbitMQ[/] [notice]handler ![/]")
-            if self.CONFIG.get_config('rabbitmq', 'exchange_type') == 'fanout':
-                try:
-                    from . import fanout
-                except:
-                    import fanout
-
+        if not isinstance(handler, list or tuple): handler = [handler]
+        for hand in handler:
+            if hand == 'socket' or self.CONFIG.get_config('SERVER', 'handle') == 'socket':
+                print("run with socket handler ...")
+                self.socket_handler(host, port)
+            elif hand in ['rabbit', 'rabbitmq'] or self.CONFIG.get_config('SERVER', 'handle') in ['rabbit', 'rabbitmq']:
                 self.username = self.CONFIG.get_config('rabbitmq', 'username') or 'guest'
                 debug(self_username =  self.username)
                 self.password = self.CONFIG.get_config('rabbitmq', 'password') or 'guest'
@@ -520,17 +517,38 @@ class Psyslog(object):
                 debug(self_host = self.host)
                 self.port = self.CONFIG.get_config('rabbitmq', 'port') or port or 5672
                 debug(self_port = self.port)
-                
-                fanout.Fanout.main(self.CONFIG.get_config('rabbitmq', 'exchange_name') or 'syslog', self.rabbit_call_back, self.host, self.port, self.username, self.password)
-            else:
-                debug(exchange_type_config = self.CONFIG.get_config('rabbitmq', 'exchange_type'))
-                if self.CONFIG.get_config('rabbitmq', 'exchange_type'):
-                    console.print(f"[error]{self.CONFIG.get_config('rabbitmq', 'exchange_type')} not yet support/created ![/]")
-                    sys.exit()
+                                
+                console.print(f"[notice]Run with[/] [error]RabbitMQ[/] [notice]handler ![/] [warning]{self.host}[/]:[debug]{self.port}[/]/[critical]{self.CONFIG.get_config('rabbitmq', 'exchange_name') or 'syslog'}[/]")
+                if self.CONFIG.get_config('rabbitmq', 'exchange_type') == 'fanout':
+                    try:
+                        from . import fanout
+                    except:
+                        import fanout
+    
+                    fanout.Fanout.main(self.CONFIG.get_config('rabbitmq', 'exchange_name') or 'syslog', self.rabbit_call_back, self.host, self.port, self.username, self.password)
                 else:
-                    console.print(f"[error]Please set Exchange Type before in config file [/][notice]{self.CONFIG.filename()}[/] [error]![/]")
+                    debug(exchange_type_config = self.CONFIG.get_config('rabbitmq', 'exchange_type'))
+                    if self.CONFIG.get_config('rabbitmq', 'exchange_type'):
+                        console.print(f"[error]{self.CONFIG.get_config('rabbitmq', 'exchange_type')} not yet support/created ![/]")
+                        sys.exit()
+                    else:
+                        console.print(f"[error]Please set Exchange Type before in config file [/][notice]{self.CONFIG.filename()}[/] [error]![/]")
 
     def handle(self, data, client_address):
+        """
+        The function `handle` processes incoming data, extracts relevant information, formats it, and
+        saves it to a file or sends it to a broker.
+        
+        :param data: The `handle` method in the provided code snippet seems to be processing log data
+        received from a client. The `data` parameter in this method represents the log data that is
+        being processed. The method performs various operations on the `data` such as decoding, parsing,
+        and formatting before returning a new
+        :param client_address: The `client_address` parameter in the `handle` method of the code snippet
+        you provided is used to store the client's IP address extracted from the incoming data. It is
+        initially set to an empty string (`''`) and then updated based on the data received. The IP
+        address is extracted using a
+        :return: The `handle` method returns two values: `newLogString` and `lineNumber`.
+        """
         # os.environ.update({'DEBUG':'1'})
         pid = os.getpid()
         hostname = ''
@@ -546,35 +564,35 @@ class Psyslog(object):
         rotate = self.CONFIG.get_config('LOGS', 'rotate')
         show_priority_number = self.CONFIG.get_config('GENERAL', 'show_priority_number')
 
-        debug(show_priority = show_priority, debug = 1)
-        debug(send_queue = send_queue, debug = 1)
-        debug(save_to_file = save_to_file, debug = 1)
-        debug(save_to_database = save_to_database, debug = 1)
-        debug(database_type = database_type, debug = 1)
-        debug(log_file_name = log_file_name, debug = 1)
-        debug(max_line = max_line, debug = 1)
-        debug(rotate = rotate, debug = 1)
-        debug(show_priority_number = show_priority_number, debug = 1)
+        debug(show_priority = show_priority)
+        debug(send_queue = send_queue)
+        debug(save_to_file = save_to_file)
+        debug(save_to_database = save_to_database)
+        debug(database_type = database_type)
+        debug(log_file_name = log_file_name)
+        debug(max_line = max_line)
+        debug(rotate = rotate)
+        debug(show_priority_number = show_priority_number)
 
         dtime = None
         facility_string = ''
         data = data.decode() if hasattr(data, 'decode') else data
-        debug(data = data, debug = 1)
+        debug(data = data)
         try:
             data_client_ip = re.findall('Original Address=(\d{0,3}\.\d{0,3}\.\d{0,3}\.\d{0,3})', data)
-            debug(data_client_ip = data_client_ip, debug = 1)
+            debug(data_client_ip = data_client_ip)
             if data_client_ip:
                 client_address = data_client_ip[0]
                 data = re.sub('Original Address=\d{0,3}\.\d{0,3}\.\d{0,3}\.\d{0,3}', '', data)
-                debug(data = data, debug = 1)
+                debug(data = data)
                 # client_address = make_colors(client_address, 'lc')
                 client_address = f"[bold #55FFFF]{client_address}[/]"
             else:
                 # client_address = make_colors(client_address[0], 'lc')
                 client_address = f"[bold #55FFFF]{client_address[0]}[/]"
-            debug(data = data, debug = 1)
+            debug(data = data)
             data = re.sub("\S{0,3} \d{0,2} \d{0,2}:\d{0,2}:\d{0,2} \d{0,3}\.\d{0,3}\.\d{0,3}\.\d{0,3} Kiwi_Syslog_Server  ", "", data)
-            debug(data = data, debug = 1)
+            debug(data = data)
             
             #client_address = make_colors(client_address[0], 'cyan')
             times = re.findall("\S{0,3} \d{0,2} \d{0,2}:\d{0,2}:\d{0,2} .*? ", data)
@@ -592,30 +610,30 @@ class Psyslog(object):
             else:
                 # times = make_colors(self.convert_time(int(time.time())), 'white', 'black')
                 times = f"[white on black]{self.convert_time(int(time.time()))}[/]"
-            debug(times = times, debug = 1)
+            debug(times = times)
             
-            debug(data = data, debug = 1)
+            debug(data = data)
             data_split = re.split('<|>', data, 2)
-            debug(data_split=data_split, debug = 1)
+            debug(data_split=data_split)
             if data_split[0] == u'':
                 number = data_split[1]
                 message = " ".join(data_split[2:]).strip()
-                debug(number=number, debug = 1)
-                debug(message=message, debug = 1)
+                debug(number=number)
+                debug(message=message)
             else:
                 number = data_split[0]
                 message = " ".join(data_split[1:]).strip()
-                debug(number=number, debug = 1)
-                debug(message=message, debug = 1)
+                debug(number=number)
+                debug(message=message)
             app = re.findall("^.*?: ", message)
-            debug(app = app, debug = 1)
+            debug(app = app)
             if app:
                 message = re.sub("^.*?: ", "", message).strip()
-                debug(data = data, debug = 1)
+                debug(data = data)
                 app = app[0].strip()
             else:
                 app = ''
-            debug(message = message, debug = 1)
+            debug(message = message)
             
             if re.findall("\S{0,3}  \d{0,1} \d{0,2}:\d{0,2}:\d{0,2} ", message):
                 dtime = re.findall("\S{0,3}  \d{0,1} \d{0,2}:\d{0,2}:\d{0,2} ", message)
@@ -625,11 +643,11 @@ class Psyslog(object):
                     dtime = datetime.strftime(dtime, '%Y/%m/%d %H:%M:%S')
                     message = re.sub(dtime + " ", '', message)
                     #message = dtime + " " + message
-            debug(GENERAL_show_priority = self.CONFIG.get_config('GENERAL', 'show_priority'), debug = 1)
+            debug(GENERAL_show_priority = self.CONFIG.get_config('GENERAL', 'show_priority'))
             # if self.CONFIG.get_config('GENERAL', 'show_priority') == 1 or self.CONFIG.get_config('GENERAL', 'show_priority') == True:
             #     facility_string = syslog.FACILITY_REVERSED.get(int(self.convert_priority_to_severity(number)[0])) or ''
-            debug(facility_string = facility_string, debug = 1)
-            debug(number = number, debug = 1)
+            debug(facility_string = facility_string)
+            debug(number = number)
             if self.CONFIG.get_config('GENERAL', 'show_priority_number'):
                 data = self.coloring(number, data, int(self.convert_priority_to_severity(number)[0]), dtime)
             else:
@@ -637,9 +655,9 @@ class Psyslog(object):
             
             #data = self.coloring(number, data)
             #data = self.coloring(number, message)
-            debug(data=data, debug = 1)
+            debug(data=data)
             laengde = len(data)
-            debug(laengde=laengde, debug = 1)
+            debug(laengde=laengde)
             # newLogString = "%s%s%s %s %s%s [%s]" % (make_colors(self.format_number(lineNumber), 'yellow'), make_colors('@', 'red'), times, client_address, make_colors(app, 'lb'), data, str(pid))
             # newLogString = f"[#FFFF00]self.format_number(lineNumber)[/][bold #FF007F]@[/]{times} {client_address} [bold #0055FF]{app}[/] {data} [bold #FFCBB3]{str(pid)}[/]"
             if laengde > 4:
@@ -649,7 +667,7 @@ class Psyslog(object):
                     newLogString = "%s@%s %s %s%s [%s]" % (self.format_number(lineNumber), times, client_address, app, data, str(pid))
                     self.sent_to_broker(newLogString)
                 if lineNumber > (self.CONFIG.get_config('LOGS', 'max_line') or 100000):
-                    debug(lineNumber=lineNumber, debug = 1)
+                    debug(lineNumber=lineNumber)
                     if sys.platform == 'win32':
                         os.system('cls')
                     else:
@@ -663,8 +681,8 @@ class Psyslog(object):
             # return newLogString
             # sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             if not newLogString: newLogString = data
-            debug(newLogString = newLogString, debug = 1)
-            debug(lineNumber = lineNumber, debug = 1)
+            debug(newLogString = newLogString)
+            debug(lineNumber = lineNumber)
             return newLogString, lineNumber
 
         except KeyboardInterrupt:
@@ -709,7 +727,7 @@ class Psyslog(object):
         debug(server_host = server_host)
         debug(server_port = server_port)
         handler = handler or self.CONFIG.get_config('SERVER', 'handle') or 'socket'
-        debug(handler = handler, debug = 1)
+        debug(handler = handler)
         client.monitor(host, port, server_port, foreground, handler)
         
     def shutdown(self, host='127.0.0.1', port=514):
@@ -742,7 +760,7 @@ class Psyslog(object):
         parser.add_argument('-f', '--foreground', action = 'store_true', help = 'Print data to foreground (CLIENT)')
         parser.add_argument('-t', '--type', help = 'Type of log, use --support to get list of support log type', action = 'store')
         parser.add_argument('--support', help = 'Get list of log type support', action = 'store_true')
-        parser.add_argument('-ha', '--handler', help = "Server handler, valid argument: 'socket|rabbit[mq]|zero[mq]|kafka|redis', default = socket", default = 'socket')
+        parser.add_argument('-ha', '--handler', help = "Server handler, valid argument: 'socket|rabbit[mq]|zero[mq]|kafka|redis', default = socket", default = 'socket', nargs = '*')
         if len(sys.argv) == 1:
             parser.print_help()
         else:

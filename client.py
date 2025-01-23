@@ -54,29 +54,83 @@ class UDPHandler(socketserver.BaseRequestHandler):
     
     SOCKET = None
     
+    def sendto(self, data, server_address, socket): 
+        yield socket.sendto(data.encode('utf-8'), server_address)
+        
+    def sendto_rabbitmq(self, data):
+        debug("run handler rabbitmq [client]", debug = 1)
+        exchange_name = CONFIG.get_config('rabbitmq', 'exchange_name') or 'syslog'
+        debug(exchange_name = exchange_name, debug = 1)
+        hostname = CONFIG.get_config('rabbitmq', 'host') or '127.0.0.1'
+        debug(hostname = hostname, debug = 1)
+        port = CONFIG.get_config('rabbitmq', 'port') or 5672
+        debug(port = port, debug = 1)
+        username = CONFIG.get_config('rabbitmq', 'username') or 'guest'
+        debug(username = username, debug = 1)
+        password = CONFIG.get_config('rabbitmq', 'password') or 'guest'
+        debug(password = password, debug = 1)
+        #yield fanout.Fanout.pub(data.encode('utf-8') if not isinstance(data, bytes) else data, exchange_name, hostname = hostname, port = port, username = username, password = password)
+        fanout.Fanout.pub(data.encode('utf-8') if not isinstance(data, bytes) else data, exchange_name, hostname = hostname, port = port, username = username, password = password)        
+        
     def generator(self, data, server_address, socket, handler = None):
         debug(data=data, debug = 1)
-        debug(server_address=server_address)
-        debug(handler = handler)
-        if (handler and handler in ['rabbit', 'rabbitmq']) or CONFIG.get_config('SERVER', 'handle') in ['rabbit', 'rabbitmq']:
-            debug("run handler rabbitmq [client]")
-            exchange_name = CONFIG.get_config('rabbitmq', 'exchange_name') or 'syslog'
-            debug(exchange_name = exchange_name, debug = 1)
-            hostname = CONFIG.get_config('rabbitmq', 'host') or '127.0.0.1'
-            debug(hostname = hostname, debug = 1)
-            port = CONFIG.get_config('rabbitmq', 'port') or 5672
-            debug(port = port, debug = 1)
-            username = CONFIG.get_config('rabbitmq', 'username') or 'guest'
-            debug(username = username, debug = 1)
-            password = CONFIG.get_config('rabbitmq', 'password') or 'guest'
-            debug(password = password, debug = 1)
-            yield fanout.Fanout.pub(data.encode('utf-8') if not isinstance(data, bytes) else data, exchange_name, hostname = hostname, port = port, username = username, password = password)
+        debug(server_address=server_address, debug = 1)
+        debug(handler = handler, debug = 1)
+        if handler:
+            if handler in ['rabbit', 'rabbitmq'] or CONFIG.get_config('SERVER', 'handle') in ['rabbit', 'rabbitmq']:
+                debug("run handler rabbitmq [client]", debug = 1)
+                exchange_name = CONFIG.get_config('rabbitmq', 'exchange_name') or 'syslog'
+                debug(exchange_name = exchange_name, debug = 1)
+                hostname = CONFIG.get_config('rabbitmq', 'host') or '127.0.0.1'
+                debug(hostname = hostname, debug = 1)
+                port = CONFIG.get_config('rabbitmq', 'port') or 5672
+                debug(port = port, debug = 1)
+                username = CONFIG.get_config('rabbitmq', 'username') or 'guest'
+                debug(username = username, debug = 1)
+                password = CONFIG.get_config('rabbitmq', 'password') or 'guest'
+                debug(password = password, debug = 1)
+                #yield fanout.Fanout.pub(data.encode('utf-8') if not isinstance(data, bytes) else data, exchange_name, hostname = hostname, port = port, username = username, password = password)
+                fanout.Fanout.pub(data.encode('utf-8') if not isinstance(data, bytes) else data, exchange_name, hostname = hostname, port = port, username = username, password = password)
+            elif handler == 'socket' or handler == '':
+                yield socket.sendto(data.encode('utf-8'), server_address)                          
+        else:
+            yield socket.sendto(data.encode('utf-8'), server_address)
+    
+    def generator1(self, data, server_address, socket, handler = None):
+        debug(data=data, debug = 1)
+        debug(server_address=server_address, debug = 1)
+        debug(handler = handler, debug = 1)
+        if handler:
+            if not isinstance(handler, list or tuple):
+                handler = [handler]
+            else:
+                handler = list(set(handler))
+            
+            for hand in handler:
+                if hand in ['rabbit', 'rabbitmq'] or CONFIG.get_config('SERVER', 'handle') in ['rabbit', 'rabbitmq']:
+                    debug("run handler rabbitmq [client]", debug = 1)
+                    exchange_name = CONFIG.get_config('rabbitmq', 'exchange_name') or 'syslog'
+                    debug(exchange_name = exchange_name, debug = 1)
+                    hostname = CONFIG.get_config('rabbitmq', 'host') or '127.0.0.1'
+                    debug(hostname = hostname, debug = 1)
+                    port = CONFIG.get_config('rabbitmq', 'port') or 5672
+                    debug(port = port, debug = 1)
+                    username = CONFIG.get_config('rabbitmq', 'username') or 'guest'
+                    debug(username = username, debug = 1)
+                    password = CONFIG.get_config('rabbitmq', 'password') or 'guest'
+                    debug(password = password, debug = 1)
+                    #yield fanout.Fanout.pub(data.encode('utf-8') if not isinstance(data, bytes) else data, exchange_name, hostname = hostname, port = port, username = username, password = password)
+                    fanout.Fanout.pub(data.encode('utf-8') if not isinstance(data, bytes) else data, exchange_name, hostname = hostname, port = port, username = username, password = password)
+                elif hand == 'socket' or hand == '':
+                    #yield socket.sendto(data.encode('utf-8'), server_address)
+                    for _ in self.sendto(data, server_address, socket):
+                        pass                                        
         else:
             yield socket.sendto(data.encode('utf-8'), server_address)
 
     def handle(self):
         debug("run handle ...")
-        os.environ.update({'DEBUG': '1',})
+        #os.environ.update({'DEBUG': '1',})
         global CLIENT_HOST
         global CLIENT_PORT
         global SERVER_HOST
@@ -93,51 +147,98 @@ class UDPHandler(socketserver.BaseRequestHandler):
         
         # print "{} wrote:".format(self.client_address[0])
         # print data
-        debug(self_client_address = self.client_address, debug = 1)
-        debug(data = data, debug = 1)
+        debug(self_client_address = self.client_address)
+        debug(data = data)
         #data, LINE_NUMBER = p.handle(data, self.client_address)
-        #debug(data = data, debug = 1)
+        #debug(data = data)
         debug(LINE_NUMBER = LINE_NUMBER)
         debug(SERVER_HOST = SERVER_HOST, debug = 1)
         debug(SERVER_PORT = SERVER_PORT, debug = 1)
         #server_address = (SERVER_HOST, SERVER_PORT)
         if isinstance(SERVER_HOST, list) and isinstance(SERVER_PORT, list):
-            debug("RUN PROCESS 1", debug = 1)
-            for s in SERVER_HOST:
-                for po in SERVER_PORT:
+            debug("RUN PROCESS 1")
+            for s in list(set(SERVER_HOST)):
+                for po in list(set(SERVER_PORT)):
                     server_address = (s, po)
                     debug(server_address = server_address)
                     self.server_address = server_address
                     
-                    #socket.sendto(data, server_address)
-                    data_client_ip = re.findall(r'Original Address=(\d{0,3}\.\d{0,3}\.\d{0,3}\.\d{0,3})', data.decode('utf-8'))
-                    debug(data_client_ip=data_client_ip)
-                    if data_client_ip:
-                        data = re.sub(r'Original Address=\d{0,3}\.\d{0,3}\.\d{0,0}\.\d{0,3}\.\d{0,3}', f'Original Address={self.client_address[0]}', data.decode('utf-8'))
-                        debug(data=data)
+                    debug(self_client_address = self.client_address)
+                    data, LINE_NUMBER = p.handle(data, self.client_address)
+                    debug(HANDLER = HANDLER)
+                    
+                    if not isinstance(HANDLER, list or tuple):
+                        HANDLER = [HANDLER]
                     else:
-                        data = f"Original Address={self.client_address[0]}" + data.decode('utf-8')
+                        HANDLER = list(set(HANDLER))
                     debug(HANDLER = HANDLER, debug = 1)
-                    for i in self.generator(data, server_address, socket, HANDLER):
-                        pass
+                    for hand in HANDLER:
+                        debug(hand = hand, debug = 1)
+                        if hand in ['rabbit', 'rabbitmq']:
+                            debug("handler is RABBITMQ ...", debug = 1)
+                            self.sendto_rabbitmq(data)
+                        elif hand == 'socket' or hand == '':
+                            debug("handler is SOCKET ...", debug = 1)
+                            #for _ in self.generator(data, server_address, socket, hand):
+                            for _ in self.sendto(data, server_address, socket):
+                                pass                                        
+                    
+                    #self.generator(data, server_address, socket, HANDLER)
+                    #for _ in self.generator(data, server_address, socket, HANDLER):
+                        #pass                    
+                    #data_client_ip = re.findall(r'Original Address=(\d{0,3}\.\d{0,3}\.\d{0,3}\.\d{0,3})', data.decode('utf-8'))
+                    #debug(data_client_ip=data_client_ip)
+                    #if data_client_ip:
+                        #data = re.sub(r'Original Address=\d{0,3}\.\d{0,3}\.\d{0,0}\.\d{0,3}\.\d{0,3}', f'Original Address={self.client_address[0]}', data.decode('utf-8'))
+                        #debug(data=data)
+                    #else:
+                        #data = f"Original Address={self.client_address[0]}" + data.decode('utf-8')
+                    #debug(HANDLER = HANDLER)
+                    #for i in self.generator(data, server_address, socket, HANDLER):
+                        #pass
         elif not isinstance(SERVER_HOST, list) and isinstance(SERVER_PORT, list):
-            debug("RUN PROCESS 2", debug = 1)
-            for po in SERVER_PORT:
+            debug("RUN PROCESS 2")
+            for po in list(set(SERVER_PORT)):
                 server_address = (SERVER_HOST, po)
                 debug(server_address = server_address)
                 self.server_address = server_address
                 
-                #socket.sendto(data, server_address)
-                data_client_ip = re.findall(r'Original Address=(\d{0,3}\.\d{0,3}\.\d{0,3}\.\d{0,3})', data.decode() if hasattr(data, 'decode') else data)
-                debug(data_client_ip=data_client_ip)
-                if data_client_ip:
-                    data = re.sub(r'Original Address=\d{0,3}\.\d{0,3}\.\d{0,0}\.\d{0,3}\.\d{0,3}', f'Original Address={self.client_address[0]}', data.decode('utf-8'))
-                    debug(data=data)
-                else:
-                    data = f"Original Address={self.client_address[0]}" + data.decode() if hasattr(data, 'decode') else data
+                debug(self_client_address = self.client_address)
+                data, LINE_NUMBER = p.handle(data, self.client_address)
+                debug(HANDLER = HANDLER, debug = 1)
+                
+                if not isinstance(HANDLER, list or tuple):
+                    HANDLER = [HANDLER]
                     debug(HANDLER = HANDLER, debug = 1)
-                for i in self.generator(data, server_address, socket, HANDLER):
-                    pass
+                else:
+                    HANDLER = list(set(HANDLER))
+                    debug(HANDLER = HANDLER, debug = 1)
+                debug(HANDLER = HANDLER, debug = 1)
+                for hand in HANDLER:
+                    debug(hand = hand, debug = 1)
+                    if hand in ['rabbit', 'rabbitmq']:
+                        debug("handler is RABBITMQ ...", debug = 1)
+                        self.sendto_rabbitmq(data)
+                    elif hand == 'socket' or hand == '':
+                        debug("handler is SOCKET ...", debug = 1)
+                        #for _ in self.generator(data, server_address, socket, hand):
+                        for _ in self.sendto(data, server_address, socket):
+                            pass                                    
+                
+                #self.generator(data, server_address, socket, HANDLER)
+                #for _ in self.generator(data, server_address, socket, HANDLER):
+                    #pass                
+                
+                #data_client_ip = re.findall(r'Original Address=(\d{0,3}\.\d{0,3}\.\d{0,3}\.\d{0,3})', data.decode() if hasattr(data, 'decode') else data)
+                #debug(data_client_ip=data_client_ip)
+                #if data_client_ip:
+                    #data = re.sub(r'Original Address=\d{0,3}\.\d{0,3}\.\d{0,0}\.\d{0,3}\.\d{0,3}', f'Original Address={self.client_address[0]}', data.decode('utf-8'))
+                    #debug(data=data)
+                #else:
+                    #data = f"Original Address={self.client_address[0]}" + data.decode() if hasattr(data, 'decode') else data
+                    #debug(HANDLER = HANDLER)
+                #for i in self.generator(data, server_address, socket, HANDLER):
+                    #pass
         else:
             debug("RUN PROCESS 3", debug = 1)
             #if not isinstance(SERVER_HOST, list): SERVER_HOST = [SERVER_HOST]
@@ -151,8 +252,23 @@ class UDPHandler(socketserver.BaseRequestHandler):
             debug(self_client_address = self.client_address, debug = 1)
             data, LINE_NUMBER = p.handle(data, self.client_address)
             debug(HANDLER = HANDLER, debug = 1)
-            for _ in self.generator(data, server_address, socket, HANDLER):
-                pass
+            #for _ in self.generator(data, server_address, socket, HANDLER):
+                #pass
+            if not isinstance(HANDLER, list or tuple):
+                HANDLER = [HANDLER]
+            else:
+                HANDLER = list(set(HANDLER))
+            debug(HANDLER = HANDLER, debug = 1)
+            for hand in HANDLER:
+                debug(hand = hand, debug = 1)
+                if hand in ['rabbit', 'rabbitmq']:
+                    debug("handler is RABBITMQ ...", debug = 1)
+                    self.sendto_rabbitmq(data)
+                elif hand == 'socket' or hand == '':
+                    debug("handler is SOCKET ...", debug = 1)
+                    #for _ in self.generator(data, server_address, socket, hand):
+                    for _ in self.sendto(data, server_address, socket):
+                        pass                    
         LINE_NUMBER += 1
         if FOREGROUND:
             print(f"{LINE_NUMBER}@{data}")

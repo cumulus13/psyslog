@@ -133,7 +133,7 @@ class Fanout(object):
         debug(port = port)
 
         channel, queue_name,conn = self.connection(exchange_name, host, port, username, password)
-        channel.basic_consume(queue = queue_name, consumer_callback = call_back, consumer_tag=self.CONFIG.get_config('GENERAL', 'consumer_tag') or 'all', no_ack = self.CONFIG.get_config('GENERAL', 'auto_ack') or False)
+        channel.basic_consume(queue = queue_name, on_message_callback = call_back, consumer_tag=self.CONFIG.get_config('GENERAL', 'consumer_tag') or 'all', auto_ack = self.CONFIG.get_config('GENERAL', 'auto_ack') or False)
         #channel.basic_recover(requeue = True)
         try:
             while 1:

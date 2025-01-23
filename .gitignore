@@ -11,3 +11,5 @@ psyslog.log
 traceback.log
 *.swp
 *.orig
+*.wolf*
+.vscode/
