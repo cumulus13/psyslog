@@ -96,7 +96,7 @@ class Fanout(object):
 
     @classmethod
     @tenacity.retry(wait=tenacity.wait_exponential(multiplier=1, min=4, max=10), stop=tenacity.stop_after_attempt(3), reraise=True)
-    def connection(self, exchange_name, hostname = '127.0.0.1', port = 5672, username = 'guest', password = 'guest'):
+    def connection(self, exchange_name, hostname = '127.0.0.1', port = 5672, username = 'guest', password = 'guest', exchange_type = 'fanout', durable = False, auto_delete = False, exclusive=False, queue_name = None):
         #establish connection to RabbitMQ
         #credentials = pika.PlainCredentials('root', 'Xxxnuxer')
         # parameters = pika.ConnectionParameters(host='192.168.0.9', port = 5672, credentials=credentials)
@@ -113,9 +113,9 @@ class Fanout(object):
 
         #create a queue to send messages
         #channel.queue_declare(queue='syslog', durable=True)
-        channel.exchange_declare(exchange = exchange_name, exchange_type=self.CONFIG.get_config('GENERAL', 'exchange_type') or 'fanout', durable=self.CONFIG.get_config('GENERAL', 'durable') or True, auto_delete=self.CONFIG.get_config('GENERAL', 'auto_delete') or False)
+        channel.exchange_declare(exchange = exchange_name, exchange_type=exchange_type or self.CONFIG.get_config('GENERAL', 'exchange_type') or 'fanout', durable=durable or self.CONFIG.get_config('GENERAL', 'durable') or True, auto_delete=auto_delete or self.CONFIG.get_config('GENERAL', 'auto_delete') or False)
 
-        result = channel.queue_declare(queue='', exclusive=self.CONFIG.get_config('GENERAL', 'exclusive') or True)
+        result = channel.queue_declare(queue=queue_name or self.CONFIG.get_config('GENERAL', 'queue_name') or '', exclusive=exclusive or self.CONFIG.get_config('GENERAL', 'exclusive') or True)
         queue_name = result.method.queue
         channel.queue_bind(exchange = exchange_name, queue = queue_name)
         return channel, queue_name, conn

@@ -29,6 +29,7 @@ from rich.theme import Theme
 from rich.console import Console
 
 import json
+import json5
 import shutil
 
 severity_theme1 = Theme({
@@ -459,16 +460,22 @@ class Psyslog(object):
         debug(body = body)
         data = body.decode() if hasattr(body, 'decode') else body
         debug(data = data)
-        #print(make_colors(datetime.strftime(datetime.now(), '%Y/%m/%d %H:%M:%S.%f'), 'lc') + " ", end = '')
-        console.print(data)
+        try:
+            data = json5.loads(data)
+        except:
+            #print(make_colors(datetime.strftime(datetime.now(), '%Y/%m/%d %H:%M:%S.%f'), 'lc') + " ", end = '')
+            console.print(data)
         ch.basic_ack(delivery_tag = met.delivery_tag)
         
     def set_data(self, data):
         debug(data = data)
         if not data:
-            console.print(f"[error]No Data ![/]")
+            console.print("[error]No Data ![/]")
             return            
-        yield console.print(data.decode())
+        try:
+            data = json5.loads(data)
+        except:
+            yield console.print(data.decode())
         
     def socket_handler(self, host = None, port = None):
         debug(host = host)
@@ -501,7 +508,7 @@ class Psyslog(object):
             CTraceback(*sys.exc_info())
             traceback.format_exc()
         
-    def server(self, host='0.0.0.0', port=None, handler = 'socket'):
+    def server(self, host='0.0.0.0', port=None, handler = 'socket', exchange_name = None, exchange_type = None, routing_key = None, queue_name = None, rabbitmq_host = None, rabbitmq_port = None, rabbitmq_durable = False, rabbitmq_auto_ack = False, rabbitmq_username = None, rabbitmq_password = None, rabbitmq_auto_delete = False, rabbitmq_exclusive = False, rabbitmq_tag = None):
         debug(handler = handler)
         if not isinstance(handler, list or tuple): handler = [handler]
         for hand in handler:
@@ -509,23 +516,67 @@ class Psyslog(object):
                 print("run with socket handler ...")
                 self.socket_handler(host, port)
             elif hand in ['rabbit', 'rabbitmq'] or self.CONFIG.get_config('SERVER', 'handle') in ['rabbit', 'rabbitmq']:
-                self.username = self.CONFIG.get_config('rabbitmq', 'username') or 'guest'
-                debug(self_username =  self.username)
-                self.password = self.CONFIG.get_config('rabbitmq', 'password') or 'guest'
-                debug(self_password = self.password)
-                self.host = self.CONFIG.get_config('rabbitmq', 'host') or host or '127.0.0.1'
-                debug(self_host = self.host)
-                self.port = self.CONFIG.get_config('rabbitmq', 'port') or port or 5672
-                debug(self_port = self.port)
+                # self.username = self.CONFIG.get_config('rabbitmq', 'username') or 'guest'
+                # debug(self_username =  self.username)
+                # self.password = self.CONFIG.get_config('rabbitmq', 'password') or 'guest'
+                # debug(self_password = self.password)
+                # self.host = rabbitmq_host or self.CONFIG.get_config('rabbitmq', 'host') or host or '127.0.0.1'
+                # debug(self_host = self.host)
+                # self.port = rabbitmq_port or self.CONFIG.get_config('rabbitmq', 'port') or port or 5672
+                # debug(self_port = self.port)
                                 
                 console.print(f"[notice]Run with[/] [error]RabbitMQ[/] [notice]handler ![/] [warning]{self.host}[/]:[debug]{self.port}[/]/[critical]{self.CONFIG.get_config('rabbitmq', 'exchange_name') or 'syslog'}[/]")
-                if self.CONFIG.get_config('rabbitmq', 'exchange_type') == 'fanout':
+                if exchange_type or self.CONFIG.get_config('rabbitmq', 'exchange_type') == 'fanout':
                     try:
                         from . import fanout
-                    except:
+                    except Exception:
                         import fanout
     
-                    fanout.Fanout.main(self.CONFIG.get_config('rabbitmq', 'exchange_name') or 'syslog', self.rabbit_call_back, self.host, self.port, self.username, self.password)
+                    fanout.Fanout.main(
+                        exchange_name or self.CONFIG.get_config('rabbitmq', 'exchange_name') or 'syslog', 
+                        self.rabbit_call_back, 
+                        rabbitmq_host or self.CONFIG.get_config('rabbitmq', 'host') or host or self.host or host, 
+                        rabbitmq_port or self.CONFIG.get_config('rabbitmq', 'port') or port or self.port or port, 
+                        rabbitmq_username or self.CONFIG.get_config('rabbitmq', 'username') or self.username,
+                        rabbitmq_password or self.CONFIG.get_config('rabbitmq', 'password') or self.password 
+                    )
+                else:
+                    # def connection(self, exchange_name, hostname = '127.0.0.1', port = 5672, username = 'guest', password = 'guest', exchange_type = 'fanout', durable = False, auto_delete = False, exclusive=False, queue_name = None):
+                    channel, queue_name, conn = fanout.Fanout.connection(
+                        exchange_name or self.CONFIG.get_config('rabbitmq', 'exchange_name') or 'topic', 
+                        rabbitmq_host or self.CONFIG.get_config('rabbitmq', 'host') or host or self.host, 
+                        rabbitmq_port or self.CONFIG.get_config('rabbitmq', 'port') or port or 5672, 
+                        rabbitmq_username or self.CONFIG.get_config('rabbitmq', 'username') or 'guest', 
+                        rabbitmq_password or self.CONFIG.get_config('rabbitmq', 'password') or 'guest',
+                        exchange_type or self.CONFIG.get_config('rabbitmq', 'exchange_type') or 'topic',
+                        rabbitmq_durable or self.CONFIG.get_config('rabbitmq', 'durable') or True,
+                        rabbitmq_auto_delete or self.CONFIG.get_config('rabbitmq', 'auto_delete') or False,
+                        rabbitmq_exclusive or self.CONFIG.get_config('rabbitmq', 'exclusive') or False,
+                        queue_name or self.CONFIG.get_config('rabbitmq', 'queue') or 'psyslog',
+                    )
+                    channel.basic_consume(
+                        queue = queue_name or self.CONFIG.get_config('rabbitmq', 'queue') or 'psyslog',
+                        on_message_callback = self.rabbit_call_back, 
+                        consumer_tag=rabbitmq_tag or self.CONFIG.get_config('GENERAL', 'consumer_tag') or 'all', 
+                        auto_ack = rabbitmq_auto_ack or self.CONFIG.get_config('GENERAL', 'auto_ack') or False
+                    )
+                    #channel.basic_recover(requeue = True)
+                    try:
+                        while 1:
+                            try:
+                                channel.start_consuming()
+                                break
+                            except KeyboardInterrupt:
+                                print("exit ...")
+                                break
+                            except Exception:
+                                CTraceback(*sys.exc_info())
+                    except KeyboardInterrupt:
+                        print("exit ...")
+                    except Exception:
+                        CTraceback(*sys.exc_info())        
+
+                    conn.close()
                 else:
                     debug(exchange_type_config = self.CONFIG.get_config('rabbitmq', 'exchange_type'))
                     if self.CONFIG.get_config('rabbitmq', 'exchange_type'):
@@ -533,6 +584,9 @@ class Psyslog(object):
                         sys.exit()
                     else:
                         console.print(f"[error]Please set Exchange Type before in config file [/][notice]{self.CONFIG.filename()}[/] [error]![/]")
+
+    def handle_json(self, data):
+        pass
 
     def handle(self, data, client_address):
         """
@@ -761,6 +815,29 @@ class Psyslog(object):
         parser.add_argument('-t', '--type', help = 'Type of log, use --support to get list of support log type', action = 'store')
         parser.add_argument('--support', help = 'Get list of log type support', action = 'store_true')
         parser.add_argument('-ha', '--handler', help = "Server handler, valid argument: 'socket|rabbit[mq]|zero[mq]|kafka|redis', default = socket", default = 'socket', nargs = '*')
+        
+        # def server(self, host='0.0.0.0', port=None, handler = 'socket', exchange_name = None, exchange_type = None, routing_key = None, queue_name = None, rabbitmq_host = None, rabbitmq_port = None, rabbitmq_durable = False, rabbitmq_auto_ack = False, rabbitmq_username = None, rabbitmq_password = None, rabbitmq_auto_delete = False, rabbitmq_exclusive = False, rabbitmq_tag = None):
+        parser.add_argument('-rq', '--rabbit-queue', help = 'Queue Name', action = 'store')
+        parser.add_argument('-rx', '--rabbit-exchange-name', help = 'Exchange Name', action = 'store')
+        parser.add_argument('-rt', '--rabbit-exchange-type', help = 'Exchange Type', action = 'store')
+        parser.add_argument('-rk', '--rabbit-routing-key', help = 'Routing Key', action = 'store')
+        parser.add_argument('-rT', '--rabbit-tag', help = 'Tag', action = 'store')
+        parser.add_argument('-ru', '--rabbit-username', help = 'Queue Authentication Username', action = 'store')
+        parser.add_argument('-rp', '--rabbit-password', help = 'Queue Authentication Password', action = 'store')
+        parser.add_argument('-rd', '--rabbit-durable', help = 'Queue Durable Mode', action = 'store_true')
+        parser.add_argument('-ra', '--rabbit-auto-ack', help = 'Queue Ack Mode', action = 'store_true')
+        parser.add_argument('-rD', '--rabbit-auto-delete', help = 'Auto Delete', action = 'store_true')
+        parser.add_argument('-re', '--rabbit-exclusive', help = 'Exlusive', action = 'store_true')
+        parser.add_argument('-rl', '--rabbit-last', help = 'Queue with Last N', action = 'store_true')
+        parser.add_argument('-rn', '--rabbit-last-number', help = 'N for last', action = 'store')
+        parser.add_argument('-rh', '--rabbit-rabbit-host', help = 'RabbitMQ Hostname if run with multiple handler, default is "127.0.0.1"', action = 'store')
+        parser.add_argument('-rp', '--rabbit-rabbit-port', help = 'RabbitMQ Port if run with multiple handler, default is 5672', action = 'store')
+
+        parser.add_argument('-s', '--show-config', help = "Show config json file", action = 'store_true')
+        parser.add_argument('-c', '--config', help = "Set config, format: key#value", action = 'store', nargs='*')
+        parser.add_argument('-t', '--test', action='store_true', help = "Test exception")
+        parser.add_argument('-v', '--verbose', help = 'Verbosity', action = 'store_true')
+
         if len(sys.argv) == 1:
             parser.print_help()
         else:
@@ -770,7 +847,8 @@ class Psyslog(object):
                 sys.exit(0)
             if args.server:
                 self.handler = args.handler
-                self.server((args.server_host or args.host), args.server_port, args.handler)
+                # def server(self, host='0.0.0.0', port=None, handler = 'socket', exchange_name = None, exchange_type = None, routing_key = None, queue_name = None, rabbitmq_host = None, rabbitmq_port = None, rabbitmq_durable = False, rabbitmq_auto_ack = False, rabbitmq_username = None, rabbitmq_password = None, rabbitmq_auto_delete = False, rabbitmq_exclusive = False, rabbitmq_tag = None):
+                self.server(args.server_host or args.host, args.server_port, args.handler, args.rabbitmq_exchange_name, args.rabbitmq_exchange_type, args.rabbitmq_routing_key, args.rabbitmq_queue, args.rabbitmq_host or args.server_host or args.host, args.rabbitmq_port or args.server_port, args.rabbitmq_durable, args.rabbitmq_auto_ack, args.rabbitmq_username, args.rabbitmq_password, args.rabbitmq_auto_delete, args.rabbitmq_exclusive, args.rabbitmq_tag)
                 self.HOST = args.host or self.HOST
                 self.PORT = args.server_port or self.PORT
             if args.client:
