@@ -21,6 +21,8 @@ from pydebugger.debug import debug
 from datetime import datetime
 import psyslog
 import importlib
+from pathlib import Path
+
 try:
     from .handler.RABBITMQ import RabbitMQHandler
 except Exception:
@@ -38,6 +40,7 @@ PORT = ''
 
 p = psyslog.Psyslog()
 CONFIG = p.CONFIG
+# debug(CONFIGNAME = CONFIG.filename)
 SERVER_HOST = p.HOST or '127.0.0.1'
 SERVER_PORT = p.PORT or 1514
 if SERVER_PORT: SERVER_PORT = int(SERVER_PORT)
@@ -56,14 +59,19 @@ RABBITMQ_HOST = '192.168.100.2'
 RABBITMQ_PORT = 5672
 RABBITMQ_USERNAME = 'root'
 RABBITMQ_PASSWORD = 'root'
-RABBITMQ_VHOST = '/'
-RABBITMQ_EXCHANGE = 'syslog'
+RABBITMQ_VHOST = 'psyslog'
+RABBITMQ_EXCHANGE = 'psyslog'
 RABBITMQ_EXCHANGE_TYPE = 'fanout'
 RABBITMQ_ROUTING_KEY = 'syslog.all'
 RABBITMQ_DURABLE = True
 RABBITMQ_DELIVERY_MODE = 2 
 RABBITMQ_AUTO_DELETE = False
 RABBITMQ_RAW = 0
+RABBITMQ_QUEUE = ''
+RABBITMQ_EXCLUSIVE = False
+RABBITMQ_AUTO_ACK = False
+RABBITMQ_VERBOSE = False
+
 
 class Server(socketserver.UDPServer):
     debug("run Server ...")
@@ -92,9 +100,12 @@ class UDPHandler(socketserver.BaseRequestHandler):
     }
     
     def sendto(self, data, server_address, socket): 
-        yield socket.sendto(data.encode('utf-8'), server_address)
-        
-    def sendto_rabbitmq(self, data, raw = False):
+        if isinstance(data, str):
+            yield socket.sendto(data.encode('utf-8'), server_address)
+        else:
+            yield socket.sendto(data, server_address)
+
+    def sendto_rabbitmq(self, data, raw = False, verbose = False):
         
         global RABBITMQ_TAG
         global RABBITMQ_HOST
@@ -109,32 +120,54 @@ class UDPHandler(socketserver.BaseRequestHandler):
         global RABBITMQ_DELIVERY_MODE
         global RABBITMQ_AUTO_DELETE
         global RABBITMQ_RAW
+        global RABBITMQ_QUEUE
+        global RABBITMQ_EXCLUSIVE
+        global RABBITMQ_AUTO_ACK
+        global RABBITMQ_VERBOSE
         
         debug("run handler rabbitmq [client]")
-        exchange_name = RABBITMQ_EXCHANGE or CONFIG.get_config('rabbitmq', 'exchange_name') or 'syslog'
-        debug(exchange_name = exchange_name)
-        exchange_type = RABBITMQ_EXCHANGE_TYPE or CONFIG.get_config('rabbitmq', 'exchange_type') or 'syslog'
-        debug(exchange_type = exchange_type)
+        exchange_name = RABBITMQ_EXCHANGE or CONFIG.get_config('rabbitmq', 'exchange_name') or 'psyslog'
+        debug(exchange_name = exchange_name, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        exchange_type = RABBITMQ_EXCHANGE_TYPE or CONFIG.get_config('rabbitmq', 'exchange_type') or 'fanout'
+        debug(exchange_type = exchange_type, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        queue = RABBITMQ_QUEUE or CONFIG.get_config('rabbitmq', 'queue') or 'q_psyslog'
+        debug(queue = queue, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        durable = RABBITMQ_DURABLE or CONFIG.get_config('rabbitmq', 'durable') or False
+        debug(durable = durable, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        auto_delete = RABBITMQ_AUTO_DELETE or CONFIG.get_config('rabbitmq', 'auto_delete') or False
+        # debug(auto_delete = auto_delete, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        debug(auto_delete = auto_delete)
+        routing_key = RABBITMQ_ROUTING_KEY or CONFIG.get_config('rabbitmq', 'routing_key') or 'syslog.all'
+        debug(routing_key = routing_key, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        delivery_mode = RABBITMQ_DELIVERY_MODE or CONFIG.get_config('rabbitmq', 'delivery_mode') or False
+        debug(delivery_mode = delivery_mode, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        vhost = RABBITMQ_VHOST or CONFIG.get_config('rabbitmq', 'vhost') or 'psyslog'
+        debug(vhost = vhost, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        exclusive = RABBITMQ_EXCLUSIVE or CONFIG.get_config('rabbitmq', 'exclusive') or False
+        debug(exclusive = exclusive, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        auto_ack = RABBITMQ_AUTO_ACK or CONFIG.get_config('rabbitmq', 'auto_ack') or False
+        debug(auto_ack = auto_ack, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
         hostname = RABBITMQ_HOST or CONFIG.get_config('rabbitmq', 'host') or '127.0.0.1'
-        debug(hostname = hostname)
+        debug(hostname = hostname, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
         port = RABBITMQ_PORT or CONFIG.get_config('rabbitmq', 'port') or 5672
-        debug(port = port)
+        debug(port = port, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
         username = RABBITMQ_USERNAME or CONFIG.get_config('rabbitmq', 'username') or 'guest'
-        debug(username = username)
+        debug(username = username, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
         password = RABBITMQ_PASSWORD or CONFIG.get_config('rabbitmq', 'password') or 'guest'
-        debug(password = password)
+        debug(password = password, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        verbose = RABBITMQ_VERBOSE or CONFIG.get_config('rabbitmq', 'verbose') or os.getenv('VERBOSE') if os.getenv('VERBOSE') in ['1', 'true', 'True'] else False
+        debug(verbose = verbose, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
         #yield fanout.Fanout.pub(data.encode('utf-8') if not isinstance(data, bytes) else data, exchange_name, hostname = hostname, port = port, username = username, password = password)
         if os.getenv('VERBOSE') == '1':
-            debug(raw = raw, debug = 1)
-            debug(RABBITMQ_RAW = RABBITMQ_RAW, debug = 1)
+            debug(raw = raw, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+            debug(RABBITMQ_RAW = RABBITMQ_RAW, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        
+        yield RabbitMQHandler.send(data.encode('utf-8') if not isinstance(data, bytes) else data, exchange_name, hostname, port, username, password, exchange_type, durable, auto_delete, exclusive, queue, auto_ack, routing_key, vhost, raw, None, CONFIG, verbose=verbose)
         
         if raw or RABBITMQ_RAW:
             exchange_name = f"{exchange_name}_raw"
-            if os.getenv('VERBOSE') == '1': debug(exchange_name = exchange_name, debug = 1)
-            # fanout.Fanout.pub(data.encode('utf-8') if not isinstance(data, bytes) else data, exchange_name, hostname = hostname, port = port, username = username, password = password, verbose= os.getenv('VERBOSE'), config = CONFIG)        
-            RabbitMQHandler.send(data.encode('utf-8') if not isinstance(data, bytes) else data, exchange_name, hostname, port, username, password, exchange_type)
-        else:
-            fanout.Fanout.pub(data.encode('utf-8') if not isinstance(data, bytes) else data, exchange_name, hostname = hostname, port = port, username = username, password = password, verbose=os.getenv('VERBOSE'), config = CONFIG)        
+            
+            yield RabbitMQHandler.send(data.encode('utf-8') if not isinstance(data, bytes) else data, exchange_name, hostname, port, username, password, exchange_type, durable, auto_delete, exclusive, queue, auto_ack, routing_key, vhost, raw, None, CONFIG, verbose=verbose)
         
     #NOT USED
     def generator(self, data, server_address, socket, handler = None):
@@ -155,7 +188,8 @@ class UDPHandler(socketserver.BaseRequestHandler):
                 password = CONFIG.get_config('rabbitmq', 'password') or 'guest'
                 debug(password = password)
                 #yield fanout.Fanout.pub(data.encode('utf-8') if not isinstance(data, bytes) else data, exchange_name, hostname = hostname, port = port, username = username, password = password)
-                fanout.Fanout.pub(data.encode('utf-8') if not isinstance(data, bytes) else data, exchange_name, hostname = hostname, port = port, username = username, password = password)
+                # fanout.Fanout.pub(data.encode('utf-8') if not isinstance(data, bytes) else data, exchange_name, hostname = hostname, port = port, username = username, password = password)
+                debug("[generator] send_to_rabbitmq")
             elif handler == 'socket' or handler == '':
                 yield socket.sendto(data.encode('utf-8'), server_address)                          
         else:
@@ -196,7 +230,6 @@ class UDPHandler(socketserver.BaseRequestHandler):
 
     def handle(self):
         debug("run handle ...")
-        #os.environ.update({'DEBUG': '1',})
         global CLIENT_HOST
         global CLIENT_PORT
         global SERVER_HOST
@@ -217,29 +250,30 @@ class UDPHandler(socketserver.BaseRequestHandler):
         debug(self_request = self.request)
         data = self.request[0].strip()
         debug(data = data)
+        data_origin = data
         socket = self.request[1]
         self.SOCKET = socket
         
-        # print "{} wrote:".format(self.client_address[0])
-        # print data
         debug(self_client_address = self.client_address)
         debug(data = data)
-        #data, LINE_NUMBER = p.handle(data, self.client_address)
-        #debug(data = data)
         debug(LINE_NUMBER = LINE_NUMBER)
         debug(SERVER_HOST = SERVER_HOST)
         debug(SERVER_PORT = SERVER_PORT)
-        #server_address = (SERVER_HOST, SERVER_PORT)
         if isinstance(SERVER_HOST, list) and isinstance(SERVER_PORT, list):
             debug("RUN PROCESS 1")
             for s in list(set(SERVER_HOST)):
                 for po in list(set(SERVER_PORT)):
-                    server_address = (s, po)
+                    server_address = (s, int(po))
                     debug(server_address = server_address)
                     self.server_address = server_address
                     
                     debug(self_client_address = self.client_address)
-                    data, LINE_NUMBER = p.handle(data, self.client_address)
+                    if CONFIG.get(po, 'style') == 'normal':
+                        data = data_origin
+                        LINE_NUMBER += 1
+                    else:
+                        data, LINE_NUMBER = p.handle(data_origin, self.client_address)
+                    
                     debug(HANDLER = HANDLER)
                     
                     if not isinstance(HANDLER, list or tuple):
@@ -251,9 +285,11 @@ class UDPHandler(socketserver.BaseRequestHandler):
                         debug(hand = hand)
                         if hand in ['rabbit', 'rabbitmq']:
                             debug("handler is RABBITMQ ...")
-                            self.sendto_rabbitmq(data)
+                            for _ in self.sendto_rabbitmq(data):
+                                pass
                             if CONFIG.get_config('rabbitmq', 'raw') in ["1", 1, 'True', 'true', True]:
-                                self.sendto_rabbitmq(data_raw, True)
+                                for _ in self.sendto_rabbitmq(data_raw, True):
+                                    pass
                         elif hand == 'socket' or hand == '':
                             debug("handler is SOCKET ...")
                             #for _ in self.generator(data, server_address, socket, hand):
@@ -275,13 +311,22 @@ class UDPHandler(socketserver.BaseRequestHandler):
                         #pass
         elif not isinstance(SERVER_HOST, list) and isinstance(SERVER_PORT, list):
             debug("RUN PROCESS 2")
+            debug(SERVER_PORT = SERVER_PORT)
             for po in list(set(SERVER_PORT)):
-                server_address = (SERVER_HOST, po)
+                debug(po = po)
+                server_address = (SERVER_HOST, int(po))
                 debug(server_address = server_address)
                 self.server_address = server_address
                 
                 debug(self_client_address = self.client_address)
-                data, LINE_NUMBER = p.handle(data, self.client_address)
+                debug(data_1 = data_origin)
+                if CONFIG.get_config(po, 'style') == 'normal':
+                    data = data_origin
+                    # LINE_NUMBER += 1
+                else:
+                    data, LINE_NUMBER = p.handle(data_origin, self.client_address)
+                debug(LINE_NUMBER = LINE_NUMBER)
+                debug(data_2 = data)
                 debug(HANDLER = HANDLER)
                 
                 if not isinstance(HANDLER, list or tuple):
@@ -301,6 +346,9 @@ class UDPHandler(socketserver.BaseRequestHandler):
                     elif hand == 'socket' or hand == '':
                         debug("handler is SOCKET ...")
                         #for _ in self.generator(data, server_address, socket, hand):
+                        debug(data = data)
+                        debug(server_address = server_address)
+                        debug(socket = socket)
                         for _ in self.sendto(data, server_address, socket):
                             pass                                    
                 
@@ -320,12 +368,8 @@ class UDPHandler(socketserver.BaseRequestHandler):
                     #pass
         else:
             debug("RUN PROCESS 3")
-            #if not isinstance(SERVER_HOST, list): SERVER_HOST = [SERVER_HOST]
-            #if not isinstance(SERVER_PORT, list): SERVER_PORT = [SERVER_PORT]
-            #if len(SERVER_PORT) < len(SERVER_HOST): SERVER_PORT.append(SERVER_PORT[0])
             debug(SERVER_HOST = SERVER_HOST)
             debug(SERVER_PORT = SERVER_PORT)
-            #for i in SERVER_HOST:
             server_address = (SERVER_HOST, SERVER_PORT)
             debug(server_address = server_address)
             debug(self_client_address = self.client_address)
@@ -343,17 +387,18 @@ class UDPHandler(socketserver.BaseRequestHandler):
                 debug(hand = hand)
                 if hand in ['rabbit', 'rabbitmq']:
                     debug("handler is RABBITMQ ...")
-                    self.sendto_rabbitmq(data)
+                    for _ in self.sendto_rabbitmq(data):
+                        pass
                     if CONFIG.get_config('rabbitmq', 'raw') in ["1", 1, 'True', 'true', True]:
-                        self.sendto_rabbitmq(data_raw, True)
+                        for _ in self.sendto_rabbitmq(data_raw, True):
+                            pass
                 elif hand == 'socket' or hand == '':
                     debug("handler is SOCKET ...")
                     #for _ in self.generator(data, server_address, socket, hand):
                     for _ in self.sendto(data, server_address, socket):
                         pass                    
         LINE_NUMBER += 1
-        if FOREGROUND:
-            print(f"{LINE_NUMBER}@{data}")
+        if FOREGROUND: print(f"{LINE_NUMBER}@{data}")
 
 #udphandle = MyUDPUDPHandler
 
@@ -430,25 +475,25 @@ def monitor(host=None, port=None, server_port=None, foreground=False, handler=No
     debug(HANDLER = HANDLER)
     is_rebind = False
     port = int(port)
-    while 1:
-        try:
-            if check_open_port(port):
-                try:
-                    main(is_rebind, host, port, server_port, handler)
-                except:
-                    CTraceback(*sys.exc_info())
-                    #print(traceback.format_exc())
-                    #is_rebind = True
-                    #port = int(port) + 1
-                    #pass
-            else:
+    # while 1:
+    try:
+        if check_open_port(port):
+            try:
+                main(is_rebind, host, port, server_port, handler)
+            except:
+                CTraceback(*sys.exc_info())
+                #print(traceback.format_exc())
                 #is_rebind = True
-                time.sleep(1)
-        except:
+                #port = int(port) + 1
+                #pass
+        else:
             #is_rebind = True
-            error = traceback.format_exc()
-            print ("ERROR:", error)
-            os.kill(os.getpid(), signal.SIGTERM)
+            time.sleep(1)
+    except:
+        #is_rebind = True
+        error = traceback.format_exc()
+        print ("ERROR:", error)
+        os.kill(os.getpid(), signal.SIGTERM)
                 
 if __name__ == "__main__":
     print ("PID:", PID)

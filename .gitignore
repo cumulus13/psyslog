@@ -13,3 +13,6 @@ traceback.log
 *.orig
 *.wolf*
 .vscode/
+
+# Added entries (1 items)
+*.code-workspace

@@ -7,6 +7,7 @@ from __future__ import print_function
 from pyexpat.errors import messages
 import click
 import sys
+from typing import List
 from ctraceback import CTraceback
 sys.excepthook = CTraceback()
 import os
@@ -47,6 +48,16 @@ except Exception:
         spec_handler_rabbitmq.loader.exec_module(RABBITMQ)
         RabbitMQHandler = RABBITMQ.RabbitMQHandler
 
+try:
+    from .custom_rich_help_formatter import CustomRichHelpFormatter
+except Exception as e:
+    try:
+        from custom_rich_help_formatter import CustomRichHelpFormatter
+    except Exception as e1:
+        spec_custom_rich_help_formatter = importlib.util.spec_from_file_location("custom_rich_help_formatter", str(Path(__file__).parent / 'custom_rich_help_formatter.py'))
+        custom_rich_help_formatter = importlib.util.module_from_spec(spec_custom_rich_help_formatter)
+        spec_custom_rich_help_formatter.loader.exec_module(custom_rich_help_formatter)
+        CustomRichHelpFormatter = custom_rich_help_formatter.CustomRichHelpFormatter
 
 severity_theme1 = Theme({
     "emergency": "#FFFFFF on #ff00ff",
@@ -165,6 +176,7 @@ class Psyslog(object):
     #         return 8
         
     def convert_priority_to_severity(self, number):
+        debug(number = number)
         facility = int(number) // 8
         level = int(number) % 8
         return facility, level
@@ -507,13 +519,26 @@ class Psyslog(object):
         
         ch.basic_ack(delivery_tag = met.delivery_tag)
         
+    def is_rich_markup(self, s: str) -> bool:
+        """
+        Detect if a string contains rich (https://pypi.org/project/rich/) style markup.
+        Examples: [bold]text[/bold], [red on_white]warning[/], [link=https://...]click[/link]
+        """
+        # Matches: [optional styles]content[/optional styles]
+        # Supports: [red], [bold italic], [on_green red], [link=https://...], etc.
+        pattern = r'\[(?:[^\[\]\s]+(?:\s+[^\[\]\s]+)*)](?!\])(?:(?!\[[^\[\]]*\/[^\[\]]*\]).)*\[/[^\[\]]*\]'
+        
+        return bool(re.search(pattern, s))
+    
     def set_data(self, data):
         debug(data = data)
         if not data:
             console.print("[error]No Data ![/]")
             return            
-        
-        yield console.print(data.decode())
+        if self.is_rich_markup(data.decode()):
+            yield console.print(data.decode())
+        else:
+            yield print(data.decode())
         
     def socket_handler(self, host = None, port = None):
         debug(host = host)
@@ -565,19 +590,19 @@ class Psyslog(object):
                 exchange_name = f"{exchange_name}_raw" if raw and not exchange_name[-3:] == 'raw' else exchange_name
                 debug(exchange_name = exchange_name)
                 if verbose:
-                    debug(exchange_type = exchange_type, debug = 1)
-                    debug(username = rabbitmq_username, debug = 1)
-                    debug(password = rabbitmq_password, debug = 1)
-                    debug(hostname = rabbitmq_host, debug = 1)
-                    debug(port = rabbitmq_port, debug = 1)
-                    debug(exchange_name = exchange_name, debug = 1)
-                    debug(exchange_type = exchange_type, debug = 1)
-                    debug(durable = rabbitmq_durable, debug = 1)
-                    debug(exclusive = rabbitmq_exclusive, debug = 1)
-                    debug(queue_name = queue_name, debug = 1)
-                    debug(auto_ack = rabbitmq_auto_ack, debug = 1)
-                    debug(auto_delete = rabbitmq_auto_delete, debug = 1)
-                    debug(routing_key = rabbitmq_routing_key, debug = 1)
+                    debug(exchange_type = exchange_type)
+                    debug(username = rabbitmq_username)
+                    debug(password = rabbitmq_password)
+                    debug(hostname = rabbitmq_host)
+                    debug(port = rabbitmq_port)
+                    debug(exchange_name = exchange_name)
+                    debug(exchange_type = exchange_type)
+                    debug(durable = rabbitmq_durable)
+                    debug(exclusive = rabbitmq_exclusive)
+                    debug(queue_name = queue_name)
+                    debug(auto_ack = rabbitmq_auto_ack)
+                    debug(auto_delete = rabbitmq_auto_delete)
+                    debug(routing_key = rabbitmq_routing_key)
 
                 RabbitMQHandler.consume(
                     self.rabbit_call_back,
@@ -696,6 +721,47 @@ class Psyslog(object):
                     CTraceback(*sys.exc_info())
                     console.log(f"e2 = [error]{e2}[/]")
                     console.print(data)
+
+    def format_syslog_datetime(self, syslog_message, target_year=2025):
+        """
+        Extract datetime dari syslog message dan format ke YYYY:MM:DD HH:MM:SS
+        
+        Args:
+            syslog_message (str): Syslog message string
+            target_year (int): Tahun yang akan digunakan (default: 2025)
+        
+        Returns:
+            str: Formatted datetime atau None jika tidak match
+        """
+        
+        # Regex pattern untuk extract datetime dari syslog
+        pattern = r'<\d+>\s*([A-Za-z]{3})\s+(\d{1,2})\s+(\d{2}:\d{2}:\d{2})'
+        
+        match = re.search(pattern, syslog_message)
+        
+        if not match:
+            return None
+        
+        month_str = match.group(1)
+        day_str = match.group(2).zfill(2)  # Pad dengan 0 jika perlu
+        time_str = match.group(3)
+        
+        # Mapping bulan ke angka
+        month_map = {
+            'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
+            'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
+            'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+        }
+        
+        month_num = month_map.get(month_str)
+        
+        if not month_num:
+            return None
+        
+        # Format ke YYYY:MM:DD HH:MM:SS
+        formatted_datetime = f"{target_year}:{month_num}:{day_str} {time_str}"
+        
+        return formatted_datetime
                     
     def handle(self, data, client_address):
         """
@@ -712,13 +778,7 @@ class Psyslog(object):
         address is extracted using a
         :return: The `handle` method returns two values: `newLogString` and `lineNumber`.
         """
-        # try:
-        #     data = json5.loads(data)
-        #     return self.handle_json(data)
-        # except Exception:
-        #     pass
         
-        # os.environ.update({'DEBUG':'1'})
         pid = os.getpid()
         hostname = ''
         app = ''
@@ -747,7 +807,8 @@ class Psyslog(object):
         facility_string = ''
         data = data.decode() if hasattr(data, 'decode') else data
         debug(data = data)
-        
+        debug(client_address = client_address)
+        # if not self.CONFIG.get_config()
         try:
             data_client_ip = re.findall('Original Address=(\d{0,3}\.\d{0,3}\.\d{0,3}\.\d{0,3})', data)
             debug(data_client_ip = data_client_ip)
@@ -765,40 +826,45 @@ class Psyslog(object):
             debug(data = data)
             
             times_stype = 1
-            #client_address = make_colors(client_address[0], 'cyan')
-            iso8601_regex = r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}[+-]\d{2}:\d{2}"
-            times = re.findall(iso8601_regex, data)
+            
+            times = self.format_syslog_datetime(data)
             debug(times = times)
             
             if not times:
-                times_stype = 2
-                times = re.findall("\S{0,3} \d{0,2} \d{0,2}:\d{0,2}:\d{0,2} .*? ", data)
-            if not times: times_stype = 0
-            debug(times = times)
-            
-            if times and times_stype:
-                if times_stype == 1:
-                    data = re.sub(iso8601_regex, '', data)
-                elif times_stype == 2:
-                    data = re.sub("\S{0,3} \d{0,2} \d{0,2}:\d{0,2}:\d{0,2} .*? ", '', data)
-                    times, hostname = re.findall("(\S{0,3} \d{0,2} \d{0,2}:\d{0,2}:\d{0,2}) (.*?) ", times[0])[0]
-                try:
+                #client_address = make_colors(client_address[0], 'cyan')
+                iso8601_regex = r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}[+-]\d{2}:\d{2}"
+                times = re.findall(iso8601_regex, data)
+                debug(times = times)
+                
+                if not times:
+                    times_stype = 2
+                    times = re.findall("\S{0,3} \d{0,2} \d{0,2}:\d{0,2}:\d{0,2} .*? ", data)
+                if not times: times_stype = 0
+                debug(times = times)
+                
+                if times and times_stype:
                     if times_stype == 1:
-                        times = f"[white on black]{self.convert_time4(times[0])}[/]"
-                    else:
-                        times = f"[white on black]{self.convert_time(str(datetime.now().year) + ' ' + times)}[/]"
-                except Exception:
+                        data = re.sub(iso8601_regex, '', data)
+                    elif times_stype == 2:
+                        data = re.sub("\S{0,3} \d{0,2} \d{0,2}:\d{0,2}:\d{0,2} .*? ", '', data)
+                        times, hostname = re.findall("(\S{0,3} \d{0,2} \d{0,2}:\d{0,2}:\d{0,2}) (.*?) ", times[0])[0]
                     try:
-                        times = f"[white on black]{self.convert_time2(str(datetime.now().year) + ' ' + times)}[/]"
-                    except:
+                        if times_stype == 1:
+                            times = f"[white on black]{self.convert_time4(times[0])}[/]"
+                        else:
+                            times = f"[white on black]{self.convert_time(str(datetime.now().year) + ' ' + times)}[/]"
+                    except Exception:
                         try:
-                            times = f"[white on black]{self.convert_time3(str(datetime.now().year) + ' ' + times)}[/]"
-                        except Exception:
-                            pass
-            else:
-                # times = make_colors(self.convert_time(int(time.time())), 'white', 'black')
-                times = f"[white on black]{self.convert_time(int(time.time()))}[/]"
-            debug(times = times)
+                            times = f"[white on black]{self.convert_time2(str(datetime.now().year) + ' ' + times)}[/]"
+                        except:
+                            try:
+                                times = f"[white on black]{self.convert_time3(str(datetime.now().year) + ' ' + times)}[/]"
+                            except Exception:
+                                pass
+                else:
+                    # times = make_colors(self.convert_time(int(time.time())), 'white', 'black')
+                    times = f"[white on black]{self.convert_time(int(time.time()))}[/]"
+                debug(times = times)
             
             debug(data = data)
             data_split = re.split('<|>', data, 2)
@@ -813,15 +879,35 @@ class Psyslog(object):
                 message = " ".join(data_split[1:]).strip()
                 debug(number=number)
                 debug(message=message)
+            debug(message = message)
+            message_pattern = r'<\d+>\s*([A-Za-z]{3})\s+(\d{1,2})\s+(\d{2}:\d{2}:\d{2})'
+            message = re.split(message_pattern, data)[-1] if re.search(message_pattern, data) else message
             app = re.findall("^.*?: ", message)
-            debug(app = app)
+            debug(app_1 = app)
             if app:
                 message = re.sub("^.*?: ", "", message).strip()
                 debug(data = data)
                 app = app[0].strip()
+                debug(app_2 = app)
             else:
                 app = ''
             debug(message = message)
+            
+            hostname_tag = app.split(' ', 1) if app else ''
+            debug(hostname_tag = hostname_tag)
+            if len(hostname_tag) > 1:
+                hostname = hostname_tag[0].strip()
+                debug(hostname = hostname)
+                app = " ".join(hostname_tag[1:]).strip()
+                debug(app = app)
+            else:
+                hostname = hostname_tag[0]
+                app = ''
+            
+            app = app[:-1] if app[-1] == ":" else app
+            debug(app_3 = app)
+            
+            hostname = f"[bold #AA557F]{hostname}[/]" if hostname else ''
             
             if re.findall("\S{0,3}  \d{0,1} \d{0,2}:\d{0,2}:\d{0,2} ", message):
                 dtime = re.findall("\S{0,3}  \d{0,1} \d{0,2}:\d{0,2}:\d{0,2} ", message)
@@ -850,7 +936,7 @@ class Psyslog(object):
             # newLogString = f"[#FFFF00]self.format_number(lineNumber)[/][bold #FF007F]@[/]{times} {client_address} [bold #0055FF]{app}[/] {data} [bold #FFCBB3]{str(pid)}[/]"
             if laengde > 4:
                 # newLogString = "%s%s%s %s %s%s [%s]" % (make_colors(self.format_number(lineNumber), 'yellow'), make_colors('@', 'red'), times, client_address, make_colors(app, 'lb'), data, str(pid))
-                newLogString = f"[#FFFF00]{self.format_number(lineNumber)}[/][bold #FF007F]@[/]{times} {client_address} [bold #0055FF]{app}[/]{data} \[[bold #FFCBB3]{str(pid)}[/]]"
+                newLogString = f"[#FFFF00]{self.format_number(lineNumber)}[/][bold #FF007F]@[/]{times} {client_address} {hostname} [bold #0055FF]{app}[/]{data} \[[bold #FFCBB3]{str(pid)}[/]]"
                 if send_queue:
                     newLogString = "%s@%s %s %s%s [%s]" % (self.format_number(lineNumber), times, client_address, app, data, str(pid))
                     self.sent_to_broker(newLogString)
@@ -936,13 +1022,13 @@ class Psyslog(object):
 
     def usage(self):
         # import argparse
-        parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+        parser = argparse.ArgumentParser(formatter_class=CustomRichHelpFormatter)
         parser.add_argument('-s', '--server', action='store_true', help='run server')
         parser.add_argument('-c', '--client', action='store_true', help='run client server')
         parser.add_argument('-H', '--host', action='store', help='Host binding (SERVER/CLIENT) default:0.0.0.0 -- all network interface')
         parser.add_argument('-P', '--client-port', action='store', help='Port binding default: 514')
         parser.add_argument('-R', '--server-host', action='store', help='Host of Server default: 0.0.0.0')
-        parser.add_argument('-S', '--server-port', action='store', help='Port binding default: 1514', type = int)
+        parser.add_argument('-S', '--server-port', action='store', help='Port binding default: 1514', nargs='*')
         parser.add_argument('-x', '--exit', action='store_true', help='shutdown/terminate server')
         parser.add_argument('-T', '--test', action='store_true', help='Test Send Message to port 514 (Client)')
         parser.add_argument('-f', '--foreground', action = 'store_true', help = 'Print data to foreground (CLIENT)')
@@ -989,14 +1075,14 @@ class Psyslog(object):
                     global RAW
                     RAW = True if args.rabbitmq_exchange_name and args.rabbitmq_exchange_name[-3:] == 'raw' else args.raw
                     self.server(
-                        args.server_host or args.host, args.server_port, 
+                        args.server_host or args.host, args.server_port[0] if args.server_port else None, 
                         args.handler, 
                         args.rabbitmq_exchange_name, 
                         args.rabbitmq_exchange_type, 
                         args.rabbitmq_routing_key, 
                         args.rabbitmq_queue, 
                         args.rabbitmq_host or args.server_host or args.host, 
-                        args.rabbitmq_port or args.server_port, 
+                        args.rabbitmq_port or args.server_port[0] if args.server_port else None, 
                         args.rabbitmq_vhost,
                         args.rabbitmq_durable, 
                         args.rabbitmq_auto_ack, 
@@ -1012,30 +1098,30 @@ class Psyslog(object):
                 else:
                     self.server(
                         args.server_host or args.host,
-                        args.server_port,
+                        args.server_port[0] if args.server_port else None,
                         verbose=args.verbose
                     )
                 self.HOST = args.host or self.HOST
-                self.PORT = args.server_port or self.PORT
+                self.PORT = (args.server_port[0] if args.server_port else None) or self.PORT
             if args.client:
                 print ("PID:", PID)
                 debug(server_port = args.server_port)
+                debug(args_handler = args.handler)
                 self.client(args.host or '0.0.0.0', args.client_port or 514, args.server_host or '0.0.0.0', args.server_port or 1514, foreground = args.foreground, handler = args.handler)
                 self.HOST = args.server_host or self.HOST
-                self.PORT = args.server_port or self.PORT
+                self.PORT = (args.server_port[0] if args.server_port else None) or self.PORT
                 self.CLIENT_HOST = args.host
-                self.CLIENT_PORT = args.port
+                self.CLIENT_PORT = args.client_port
             if args.exit:
                 host = (args.host or args.server_host)
                 if host == '0.0.0.0': host = '127.0.0.1'                
                 if args.server:
-                    self.shutdown(host, args.server_port)
+                    self.shutdown(host, args.server_port[0] if args.server_port else None)
                 elif args.client:
                     self.shutdown(host, args.client_port)
                 else:
-                    self.shutdown(host, args.server_port)                
+                    self.shutdown(host, args.server_port[0] if args.server_port else None)                
                     self.shutdown(host, args.client_port)
-
 
 if __name__ == "__main__":
     c = Psyslog()

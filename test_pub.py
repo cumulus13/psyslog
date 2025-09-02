@@ -5,15 +5,15 @@ parameters = pika.ConnectionParameters(host='192.168.100.2', port=5672, credenti
 connection = pika.BlockingConnection(parameters)
 channel = connection.channel()
 
-channel.exchange_declare(exchange='syslog', exchange_type='fanout', durable=True)
+channel.exchange_declare(exchange='psyslog', exchange_type='fanout', durable=True)
 
 channel.queue_declare(queue="q_psyslog", durable=True)
 
-channel.queue_bind(exchange='syslog', queue="q_psyslog", routing_key='syslog.all')
+channel.queue_bind(exchange='psyslog', queue="q_psyslog", routing_key='syslog.all')
 
 # Publish messages with different routing keys
 channel.basic_publish(
-        exchange='syslog_raw',
+        exchange='psyslog',
         routing_key="syslog.all",
         body="TEST 001",
         properties=pika.BasicProperties(delivery_mode=2)  # Message persistence

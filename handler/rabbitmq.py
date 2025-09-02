@@ -82,6 +82,7 @@ class RabbitMQHandler:
     
     @classmethod
     def set(self, exchange_name = None, hostname = None, port = None, username = None, password = None, exchange_type = None, durable = False, auto_delete = False, exclusive=False, queue_name = None, auto_ack = False, routing_key = None, vhost = None, verbose = False):
+        debug(auto_delete = auto_delete)
         username = username or CONFIG.get_config('rabbitmq', 'username') or CONFIG.get_config('rabbitmq', 'username') or 'guest'
         
         password = password or CONFIG.get_config('rabbitmq', 'password') or CONFIG.get_config('rabbitmq', 'password') or 'guest'
@@ -97,6 +98,7 @@ class RabbitMQHandler:
         durable = durable or CONFIG.get_config('rabbitmq', 'durable') or CONFIG.get_config('rabbitmq', 'durable') or False
         
         auto_delete = auto_delete or CONFIG.get_config('rabbitmq', 'auto_delete') or CONFIG.get_config('rabbitmq', 'auto_delete') or False
+        debug(auto_delete = auto_delete)
         
         exclusive = exclusive or CONFIG.get_config('rabbitmq', 'exclusive') or CONFIG.get_config('rabbitmq', 'exclusive') or False
         
@@ -109,21 +111,21 @@ class RabbitMQHandler:
         vhost = vhost or CONFIG.get_config('rabbitmq', 'vhost') or CONFIG.get_config('rabbitmq', 'vhost') or '/'
         
         if verbose or os.getenv('VERBOSE') == '1':
-            debug(username = username, debug = 1)
-            debug(password = password, debug = 1)
-            debug(hostname = hostname, debug = 1)
-            debug(port = port, debug = 1)
-            debug(port = port, debug = 1)
-            debug(exchange_name = exchange_name, debug = 1)
-            debug(exchange_type = exchange_type, debug = 1)
-            debug(durable = durable, debug = 1)
-            debug(auto_delete = auto_delete, debug = 1)
-            debug(exclusive = exclusive, debug = 1)
-            debug(queue_name = queue_name, debug = 1)
-            debug(auto_ack = auto_ack, debug = 1)
-            debug(routing_key = routing_key, debug = 1)
-            debug(vhost = vhost, debug = 1)
-            debug(configfile = CONFIG.configname, debug = 1)
+            debug(username = username)
+            debug(password = password)
+            debug(hostname = hostname)
+            debug(port = port)
+            debug(port = port)
+            debug(exchange_name = exchange_name)
+            debug(exchange_type = exchange_type)
+            debug(durable = durable)
+            debug(auto_delete = auto_delete)
+            debug(exclusive = exclusive)
+            debug(queue_name = queue_name)
+            debug(auto_ack = auto_ack)
+            debug(routing_key = routing_key)
+            debug(vhost = vhost)
+            debug(configfile = CONFIG.configname)
         
         return exchange_name, hostname, port, username, password, exchange_type, durable, auto_delete, exclusive, queue_name, auto_ack, routing_key, vhost
 
@@ -189,8 +191,11 @@ class RabbitMQHandler:
         :return: The `connection` method returns a tuple containing three elements: `channel`,
         `queue_name`, and `conn`.
         """
+        debug(EXCLUSIVE = exclusive)
+        # exchange_name, hostname, port, username, password, exchange_type, durable, auto_delete, exclusive, queue_name, auto_ack, routing_key, vhost = self.set(exchange_name, hostname, port, username, password, exchange_type, durable, auto_delete, exclusive, queue_name, auto_ack, routing_key, vhost)
         
-        exchange_name, hostname, port, username, password, exchange_type, durable, auto_delete, exclusive, queue_name, auto_ack, routing_key, vhost = self.set(exchange_name, hostname, port, username, password, exchange_type, durable, auto_delete, exclusive, queue_name, auto_ack, routing_key, vhost)
+        debug(auto_delete = auto_delete)
+        debug(exclusive = exclusive)
         
         if config and isinstance(config, configset):
             CONFIG = config
@@ -199,6 +204,9 @@ class RabbitMQHandler:
             CONFIG = configset(configfile)
             
         exchange_name, hostname, port, username, password, exchange_type, durable, auto_delete, exclusive, queue_name, auto_ack, routing_key, vhost = self.set(exchange_name, hostname, port, username, password, exchange_type, durable, auto_delete, exclusive, queue_name, auto_ack, routing_key, vhost)
+        
+        debug(auto_delete = auto_delete)
+        debug(exclusive = exclusive)
                     
         # parameters = pika.URLParameters('amqp://{}:{}@{}:{}/{}'.format(username, password, hostname, port, vhost or '%2F'))
         credentials = pika.PlainCredentials(username, password)
@@ -207,20 +215,20 @@ class RabbitMQHandler:
         conn = None
                 
         if verbose:
-            debug(username = username, debug = 1)
-            debug(password = password, debug = 1)
-            debug(hostname = hostname, debug = 1)
-            debug(port = port, debug = 1)
-            debug(exchange_name = exchange_name, debug = 1)
-            debug(exchange_type = exchange_type, debug = 1)
-            debug(durable = durable, debug = 1)
-            debug(auto_delete = auto_delete, debug = 1)
-            debug(exclusive = exclusive, debug = 1)
-            debug(queue_name = queue_name, debug = 1)
-            debug(auto_ack = auto_ack, debug = 1)
-            debug(routing_key = routing_key, debug = 1)
-            debug(vhost = vhost, debug = 1)
-            debug(parameters = parameters, debug = 1)
+            debug(username = username)
+            debug(password = password)
+            debug(hostname = hostname)
+            debug(port = port)
+            debug(exchange_name = exchange_name)
+            debug(exchange_type = exchange_type)
+            debug(durable = durable)
+            debug(auto_delete = auto_delete)
+            debug(exclusive = exclusive)
+            debug(queue_name = queue_name)
+            debug(auto_ack = auto_ack)
+            debug(routing_key = routing_key)
+            debug(vhost = vhost)
+            debug(parameters = parameters)
 
         while 1:
             try:
@@ -233,7 +241,7 @@ class RabbitMQHandler:
                     durable = durable, 
                     auto_delete = auto_delete
                 )
-
+                debug(exclusive = exclusive, debug = verbose)
                 result = channel.queue_declare(
                     queue=queue_name, 
                     exclusive=exclusive, 
@@ -258,7 +266,9 @@ class RabbitMQHandler:
     @tenacity.retry(wait=wait_exponential(multiplier=1, min=4, max=10), stop=stop_after_attempt(3), reraise=True)
     def send(self, message, exchange_name = None, hostname = None, port = None, username = None, password = None, exchange_type = None, durable = False, auto_delete = False, exclusive=False, queue_name = None, auto_ack = False, routing_key = None, vhost = None, raw = False, configfile = None, config = None, verbose = False):
         
-        exchange_name, hostname, port, username, password, exchange_type, durable, auto_delete, exclusive, queue_name, auto_ack, routing_key, vhost = self.set(exchange_name, hostname, port, username, password, exchange_type, durable, auto_delete, exclusive, queue_name, auto_ack, routing_key, vhost)
+        debug(EXCLUSIVE_1 = exclusive, debug = verbose)
+        
+        # exchange_name, hostname, port, username, password, exchange_type, durable, auto_delete, exclusive, queue_name, auto_ack, routing_key, vhost = self.set(exchange_name, hostname, port, username, password, exchange_type, durable, auto_delete, exclusive, queue_name, auto_ack, routing_key, vhost)
         
         if config and isinstance(config, configset):
             CONFIG = config
@@ -270,31 +280,33 @@ class RabbitMQHandler:
         if raw: exchange_name = f"{exchange_name}_raw" if raw and not exchange_name[-3:] == 'raw' else exchange_name
             
         if verbose:
-            debug(config = config, debug = 1)
-            debug(configfile = configfile, debug = 1)
-            debug(configfile_CONFIG = CONFIG.filename(), debug = 1)
-            debug(username = username, debug = 1)
-            debug(password = password, debug = 1)
-            debug(hostname = hostname, debug = 1)
-            debug(port = port, debug = 1)
-            debug(exchange_name = exchange_name, debug = 1)
-            debug(exchange_type = exchange_type, debug = 1)
-            debug(durable = durable, debug = 1)
-            debug(auto_delete = auto_delete, debug = 1)
-            debug(exclusive = exclusive, debug = 1)
-            debug(queue_name = queue_name, debug = 1)
-            debug(auto_ack = auto_ack, debug = 1)
-            debug(routing_key = routing_key, debug = 1)
-            debug(vhost = vhost, debug = 1)
+            debug(config = config, debug = verbose)
+            debug(configfile = configfile, debug = verbose)
+            debug(configfile_CONFIG = CONFIG.filename(), debug = verbose)
+            debug(username = username, debug = verbose)
+            debug(password = password, debug = verbose)
+            debug(hostname = hostname, debug = verbose)
+            debug(port = port, debug = verbose)
+            debug(exchange_name = exchange_name, debug = verbose)
+            debug(exchange_type = exchange_type, debug = verbose)
+            debug(durable = durable, debug = verbose)
+            debug(auto_delete = auto_delete, debug = verbose)
+            debug(exclusive = exclusive, debug = verbose)
+            debug(queue_name = queue_name, debug = verbose)
+            debug(auto_ack = auto_ack, debug = verbose)
+            debug(routing_key = routing_key, debug = verbose)
+            debug(vhost = vhost, debug = verbose)
         
         conn = None
         
         try:
             while 1:
                 try:
+                    debug(exclusive_1 = exclusive, debug = verbose)
                     channel, queue_name, conn = self.connect(exchange_name, hostname, port, username, password, exchange_type, durable, auto_delete, exclusive, queue_name, auto_ack, routing_key, vhost, verbose=verbose)
             
                     channel.basic_publish(exchange_name, routing_key = routing_key, body=message, properties=pika.BasicProperties(delivery_mode=2) if durable else None)
+                    break
                 except Exception:
                     CTraceback(*sys.exc_info(), print_it = verbose or False)
                     if conn: conn.close
@@ -327,22 +339,22 @@ class RabbitMQHandler:
         if raw: exchange_name = f"{exchange_name}_raw" if raw and not exchange_name[-3:] == 'raw' else exchange_name
             
         if verbose:
-            debug(config = config, debug = 1)
-            debug(configfile = configfile, debug = 1)
-            debug(configfile_CONFIG = CONFIG.filename(), debug = 1)
-            debug(username = username, debug = 1)
-            debug(password = password, debug = 1)
-            debug(hostname = hostname, debug = 1)
-            debug(port = port, debug = 1)
-            debug(exchange_name = exchange_name, debug = 1)
-            debug(exchange_type = exchange_type, debug = 1)
-            debug(durable = durable, debug = 1)
-            debug(auto_delete = auto_delete, debug = 1)
-            debug(exclusive = exclusive, debug = 1)
-            debug(queue_name = queue_name, debug = 1)
-            debug(auto_ack = auto_ack, debug = 1)
-            debug(routing_key = routing_key, debug = 1)
-            debug(vhost = vhost, debug = 1)
+            debug(config = config)
+            debug(configfile = configfile)
+            debug(configfile_CONFIG = CONFIG.filename())
+            debug(username = username)
+            debug(password = password)
+            debug(hostname = hostname)
+            debug(port = port)
+            debug(exchange_name = exchange_name)
+            debug(exchange_type = exchange_type)
+            debug(durable = durable)
+            debug(auto_delete = auto_delete)
+            debug(exclusive = exclusive)
+            debug(queue_name = queue_name)
+            debug(auto_ack = auto_ack)
+            debug(routing_key = routing_key)
+            debug(vhost = vhost)
         
         conn = None
         
