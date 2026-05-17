@@ -16,3 +16,39 @@ traceback.log
 
 # Added entries (1 items)
 *.code-workspace
+
+# Added entries (1 items)
+*sublime*
+
+# Added entries (1 items)
+__pycache__/
+
+# Added entries (28 items)
+client.py.1
+client_180911165913892000.py
+cons.py
+cons1.py
+cust_direct.ini
+cust_direct_nginx.py
+cust_error.ini
+cust_error.py
+cust_fanout.ini
+cust_fanout.py
+cust_fanout_rsyslog.ini
+cust_fanout_rsyslog.py
+data_processing.py
+direct.py
+django.ini
+django.py
+fanoutcolor.py
+prod_fanout.py
+prod_nginx_test.py
+psyslog_redis.py
+syslog.py
+test_cus1.py
+test_mongo.py
+test_parse_1.py
+test_parse_2.py
+test_pub.py
+test_socket.ini
+test_socket.py

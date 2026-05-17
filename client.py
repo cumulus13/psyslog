@@ -5,34 +5,49 @@
 
 from __future__ import print_function
 import sys
-from ctraceback import CTraceback
-sys.excepthook = CTraceback
-import socketserver
-from make_colors import make_colors
-from rich.text import Text
-from ctraceback.custom_traceback import console
 import traceback
+try:
+    from ctraceback import CTraceback  # type: ignore
+    from ctraceback.custom_traceback import console  # type: ignore
+    sys.excepthook = CTraceback
+except:
+    CTraceback = traceback.print_exc
+from rich.text import Text  # type: ignore
+from rich.console import Console  # type: ignore
+console = Console()
+import socketserver
+from make_colors import make_colors  # type: ignore
 import socket
-import re
+# import re
 import signal
 import os
 import time
-from pydebugger.debug import debug
+try:
+    from pydebugger.debug import debug  # type: ignore
+except:
+    def debug(data = None, debug = False, **kwargs):
+        if data and str(debug).lower() in ('1', 'yes', 'ok', 'on', 'true'):
+            print(data)
+        else:
+            if kwargs and str(debug).lower() in ('1', 'yes', 'ok', 'on', 'true'):
+                for i in kwargs:
+                    print(f"{i} = {kwargs.get(i)}, TYPE: {type(kwargs.get(i))}")
+
 from datetime import datetime
 import psyslog
 import importlib
 from pathlib import Path
 
 try:
-    from .handler.RABBITMQ import RabbitMQHandler
+    from .handler.RABBITMQ import RabbitMQHandler  # type: ignore
 except Exception:
     try:
         from handler.RABBITMQ import RabbitMQHandler
     except Exception:
-        spec_handler_rabbitmq = importlib.util.spec_from_file_location("RABBITMQ", str(Path(__file__).parent / 'handler' / 'RABBITMQ.py'))
-        RABBITMQ = importlib.util.module_from_spec(spec_handler_rabbitmq)
+        spec_handler_rabbitmq = importlib.util.spec_from_file_location("RABBITMQ", str(Path(__file__).parent / 'handler' / 'RABBITMQ.py'))  # type: ignore
+        RABBITMQ = importlib.util.module_from_spec(spec_handler_rabbitmq)  # type: ignore
         spec_handler_rabbitmq.loader.exec_module(RABBITMQ)
-        RabbitMQHandler = RABBITMQ.RabbitMQHandler
+        RabbitMQHandler = RABBITMQ.RabbitMQHandler  # type: ignore
 
 PID = os.getpid()
 HOST = ''
@@ -46,12 +61,12 @@ SERVER_PORT = p.PORT or 1514
 if SERVER_PORT: SERVER_PORT = int(SERVER_PORT)
 if SERVER_HOST == '0.0.0.0': SERVER_HOST = '127.0.0.1'
 
-CLIENT_HOST = CONFIG.get_config('CLIENT', 'host', value='0.0.0.0') or '0.0.0.0'
-CLIENT_PORT = CONFIG.get_config('CLIENT', 'port', value= '516') or 516
+CLIENT_HOST = CONFIG.get_config('CLIENT', 'host', default='0.0.0.0')  # type: ignore
+CLIENT_PORT = CONFIG.get_config('CLIENT', 'port', default= '516')  # type: ignore
 LINE_NUMBER = 1
 PID = os.getpid()
 FOREGROUND = False
-HANDLER = CONFIG.get_config('SERVER', 'handle') or 'socket'
+HANDLER = CONFIG.get_config('SERVER', 'handle', default='socket')  # type: ignore
 NC = 0
 
 RABBITMQ_TAG = 'all'
@@ -70,11 +85,11 @@ RABBITMQ_RAW = 0
 RABBITMQ_QUEUE = ''
 RABBITMQ_EXCLUSIVE = False
 RABBITMQ_AUTO_ACK = False
-RABBITMQ_VERBOSE = False
+RABBITMQ_VERBOSE = str(os.getenv('verbose', False)).lower() in ['1', 'ok', 'yes', 'true', 'on']
 
 
 class Server(socketserver.UDPServer):
-    debug("run Server ...")
+    debug("run Server ...")  # type: ignore
     allow_reuse_address = True
 
 class UDPHandler(socketserver.BaseRequestHandler):
@@ -124,43 +139,45 @@ class UDPHandler(socketserver.BaseRequestHandler):
         global RABBITMQ_EXCLUSIVE
         global RABBITMQ_AUTO_ACK
         global RABBITMQ_VERBOSE
+
+        verbose = RABBITMQ_VERBOSE or verbose
         
         debug("run handler rabbitmq [client]")
-        exchange_name = RABBITMQ_EXCHANGE or CONFIG.get_config('rabbitmq', 'exchange_name') or 'psyslog'
-        debug(exchange_name = exchange_name, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
-        exchange_type = RABBITMQ_EXCHANGE_TYPE or CONFIG.get_config('rabbitmq', 'exchange_type') or 'fanout'
-        debug(exchange_type = exchange_type, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        exchange_name = RABBITMQ_EXCHANGE or CONFIG.get_config('rabbitmq', 'exchange_name', default='psyslog')  # type: ignore
+        debug(exchange_name = exchange_name, debug = verbose)  # type: ignore
+        exchange_type = RABBITMQ_EXCHANGE_TYPE or CONFIG.get_config('rabbitmq', 'exchange_type', default='fanout')
+        debug(exchange_type = exchange_type, debug = verbose)
         queue = RABBITMQ_QUEUE or CONFIG.get_config('rabbitmq', 'queue') or 'q_psyslog'
-        debug(queue = queue, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        debug(queue = queue, debug = verbose)
         durable = RABBITMQ_DURABLE or CONFIG.get_config('rabbitmq', 'durable') or False
-        debug(durable = durable, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        debug(durable = durable, debug = verbose)
         auto_delete = RABBITMQ_AUTO_DELETE or CONFIG.get_config('rabbitmq', 'auto_delete') or False
-        # debug(auto_delete = auto_delete, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        # debug(auto_delete = auto_delete, debug = verbose)
         debug(auto_delete = auto_delete)
         routing_key = RABBITMQ_ROUTING_KEY or CONFIG.get_config('rabbitmq', 'routing_key') or 'syslog.all'
-        debug(routing_key = routing_key, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        debug(routing_key = routing_key, debug = verbose)
         delivery_mode = RABBITMQ_DELIVERY_MODE or CONFIG.get_config('rabbitmq', 'delivery_mode') or False
-        debug(delivery_mode = delivery_mode, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        debug(delivery_mode = delivery_mode, debug = verbose)
         vhost = RABBITMQ_VHOST or CONFIG.get_config('rabbitmq', 'vhost') or 'psyslog'
-        debug(vhost = vhost, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        debug(vhost = vhost, debug = verbose)
         exclusive = RABBITMQ_EXCLUSIVE or CONFIG.get_config('rabbitmq', 'exclusive') or False
-        debug(exclusive = exclusive, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        debug(exclusive = exclusive, debug = verbose)
         auto_ack = RABBITMQ_AUTO_ACK or CONFIG.get_config('rabbitmq', 'auto_ack') or False
-        debug(auto_ack = auto_ack, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        debug(auto_ack = auto_ack, debug = verbose)
         hostname = RABBITMQ_HOST or CONFIG.get_config('rabbitmq', 'host') or '127.0.0.1'
-        debug(hostname = hostname, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        debug(hostname = hostname, debug = verbose)
         port = RABBITMQ_PORT or CONFIG.get_config('rabbitmq', 'port') or 5672
-        debug(port = port, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        debug(port = port, debug = verbose)
         username = RABBITMQ_USERNAME or CONFIG.get_config('rabbitmq', 'username') or 'guest'
-        debug(username = username, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        debug(username = username, debug = verbose)
         password = RABBITMQ_PASSWORD or CONFIG.get_config('rabbitmq', 'password') or 'guest'
-        debug(password = password, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        debug(password = password, debug = verbose)
         verbose = RABBITMQ_VERBOSE or CONFIG.get_config('rabbitmq', 'verbose') or os.getenv('VERBOSE') if os.getenv('VERBOSE') in ['1', 'true', 'True'] else False
-        debug(verbose = verbose, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+        debug(verbose = verbose, debug = verbose)
         #yield fanout.Fanout.pub(data.encode('utf-8') if not isinstance(data, bytes) else data, exchange_name, hostname = hostname, port = port, username = username, password = password)
         if os.getenv('VERBOSE') == '1':
-            debug(raw = raw, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
-            debug(RABBITMQ_RAW = RABBITMQ_RAW, debug = RABBITMQ_VERBOSE or verbose or os.getenv('verbose') if os.getenv('verbose') in ['1', 'true', 'True'] else False)
+            debug(raw = raw, debug = verbose)
+            debug(RABBITMQ_RAW = RABBITMQ_RAW, debug = verbose)
         
         yield RabbitMQHandler.send(data.encode('utf-8') if not isinstance(data, bytes) else data, exchange_name, hostname, port, username, password, exchange_type, durable, auto_delete, exclusive, queue, auto_ack, routing_key, vhost, raw, None, CONFIG, verbose=verbose)
         
@@ -324,6 +341,7 @@ class UDPHandler(socketserver.BaseRequestHandler):
                     data = data_origin
                     # LINE_NUMBER += 1
                 else:
+                    debug(test = p.handle(data_origin, self.client_address))
                     data, LINE_NUMBER = p.handle(data_origin, self.client_address)
                 debug(LINE_NUMBER = LINE_NUMBER)
                 debug(data_2 = data)

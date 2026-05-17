@@ -904,7 +904,7 @@ class Psyslog(object):
                 hostname = hostname_tag[0]
                 app = ''
             
-            app = app[:-1] if app[-1] == ":" else app
+            app = app[:-1] if app and app[-1] == ":" else app
             debug(app_3 = app)
             
             hostname = f"[bold #AA557F]{hostname}[/]" if hostname else ''
