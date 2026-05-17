@@ -52,3 +52,6 @@ test_parse_2.py
 test_pub.py
 test_socket.ini
 test_socket.py
+
+# Added entries (1 items)
+*.bak

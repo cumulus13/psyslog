@@ -1,3 +1,19 @@
+#!/usr/bin/env python3
+
+# File: test.py
+# Author: Hadi Cahyadi <cumulus13@gmail.com>
+# Date: 2026-05-17
+# Description: 
+# License: MIT
+
+import sys
+
+if sys.version_info.major == 2:
+    import SocketServer
+else:
+    import socketserver as SocketServer
+
+
 class SyslogUDPHandler(SocketServer.BaseRequestHandler):
     
     def make_colors_click(self, string, foreground='', background=''):
@@ -123,8 +139,8 @@ class SyslogUDPHandler(SocketServer.BaseRequestHandler):
             file_config_path = os.path.join(os.path.dirname(__file__), os.path.basename(file_config_path))
         else:
             file_config_path = os.path.join(os.path.dirname(__file__), 'psyslog.ini')
-        import ConfigParser
-        cfg = ConfigParser.RawConfigParser(allow_no_value=True)
+        import configparser
+        cfg = configparser.RawConfigParser(allow_no_value=True)
         cfg.optionxform = str
         if not os.path.isfile(file_config_path):
             f = open(file_config_path, 'w')
@@ -159,7 +175,7 @@ class SyslogUDPHandler(SocketServer.BaseRequestHandler):
         
         try:
             cfg.set(section, option, value)
-        except ConfigParser.NoSectionError:
+        except configparser.NoSectionError:
             cfg.add_section(section)
             cfg.set(section, option, value)
         cfg_data = open(config_file,'wb')
@@ -298,7 +314,7 @@ class SyslogUDPHandler(SocketServer.BaseRequestHandler):
         data = bytes.decode(self.request[0].strip(), 'utf-8')
         data_split = re.split('<|>', data, 2)
         # print "data_split =",data_split
-        if data_split[0] == u'':
+        if data_split[0] == '':
             number = data_split[1]
             message = " ".join(data_split[2:]).strip()
         else:
@@ -319,10 +335,10 @@ class SyslogUDPHandler(SocketServer.BaseRequestHandler):
                 newLogString = "%s@%s %s %s\n" % (lineNumber, times, self.client_address[0], data)
                 self.sent_to_broker(newLogString)
             try:
-                print newLogString
+                print(newLogString)
             except:
         
-                print "%s@%s %s %s" % (lineNumber, times, self.client_address[0], message)
+                print("%s@%s %s %s" % (lineNumber, times, self.client_address[0], message))
             if save_to_file:
                 self.save_to_file(message, times, facility_string, log_file_name, rotate)
             lineNumber += 1
@@ -350,10 +366,10 @@ def run2():
         c = Psyslog()
         c.handle()
     except KeyboardInterrupt:
-        print "Closing .. by user"
+        print("Closing .. by user")
         sys.exit(0)
     except:
         traceback.format_exc()
-        print "Closing .. by system"
+        print("Closing .. by system")
         sys.exit(0)
 

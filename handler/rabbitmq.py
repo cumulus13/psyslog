@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+
+# File: handler/RABBITMQ.py
+# Author: Hadi Cahyadi <cumulus13@gmail.com>
+# Date: 2026-05-17
+# Description: 
+# License: MIT
+
 from __future__ import absolute_import, unicode_literals
 import sys
 from ctraceback import CTraceback
