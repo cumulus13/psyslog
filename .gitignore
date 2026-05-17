@@ -16,3 +16,9 @@ traceback.log
 
 # Added entries (1 items)
 *.code-workspace
+
+# Added entries (1 items)
+*.bak
+
+# Added entries (1 items)
+*sublime*
