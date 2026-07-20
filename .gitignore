@@ -55,3 +55,5 @@ test_socket.py
 
 # Added entries (1 items)
 *.bak
+# PT backup directory
+.pt/
